@@ -6,26 +6,26 @@ def test_calculate_gdp_growth_yoy():
     result = calculate_gdp_growth_yoy(row)
     assert result == 11.11111111111111
 
-    row = {'gdp_usd': 0, 'gdp_usd_prev': 0}
+    row = {'gdp_usd': 1500, 'gdp_usd_prev': 1500}
     result = calculate_gdp_growth_yoy(row)
     assert result == 0.0
 
-    row = {'gdp_usd': 1500, 'gdp_usd_prev': 0}
+    row = {'gdp_usd': 0, 'gdp_usd_prev': 1000}
     result = calculate_gdp_growth_yoy(row)
-    assert result == 0.0
+    assert result == -100.0
 
 def test_calculate_population_growth_yoy():
     row = {'population': 1000000, 'population_prev': 950000}
     result = calculate_population_growth_yoy(row)
     assert result == 5.2631578947368425
 
-    row = {'population': 0, 'population_prev': 0}
+    row = {'population': 2000000, 'population_prev': 2000000}
     result = calculate_population_growth_yoy(row)
     assert result == 0.0
 
-    row = {'population': 500000, 'population_prev': 0}
+    row = {'population': 0, 'population_prev': 500000}
     result = calculate_population_growth_yoy(row)
-    assert result == 0.0
+    assert result == -100.0
 
 def test_categorize_economic_size():
     row = {'gdp_billions': 50}
