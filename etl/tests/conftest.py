@@ -17,10 +17,10 @@ def empty_records():
 
 @pytest.fixture
 def invalid_records():
-    """Provides a list of records with missing or invalid required fields."""
+    """Provides a list of records with missing or null required fields."""
     return [
-        {"id": None, "name": "Country D", "gdp": 3000.0, "population": 12000000, "exchange_rate": 1.2},
-        {"id": "invalid_type", "name": None, "gdp": 2500.0, "population": 8000000, "exchange_rate": 1.1},
+        {"id": None, "name": "Country D", "gdp": 3000.0, "population": 2000000, "exchange_rate": 1.2},
+        {"id": "invalid_type", "name": None, "gdp": 2500.0, "population": 3000000, "exchange_rate": 1.1},
         {},
     ]
 
