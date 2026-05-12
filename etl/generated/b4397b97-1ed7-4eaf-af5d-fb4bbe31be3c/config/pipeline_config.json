@@ -1,0 +1,97 @@
+{
+  "sources": [
+    {
+      "name": "worldbank_gdp",
+      "type": "rest_api",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/NY.GDP.MKTP.CD",
+      "method": "GET",
+      "params": {
+        "format": "json",
+        "per_page": 1000,
+        "date": "2020:2023"
+      },
+      "headers": {},
+      "auth_type": "none",
+      "auth_env_var": null,
+      "response_path": "",
+      "role": "primary",
+      "description": "GDP data from World Bank"
+    },
+    {
+      "name": "worldbank_population",
+      "type": "rest_api",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL",
+      "method": "GET",
+      "params": {
+        "format": "json",
+        "per_page": 1000,
+        "date": "2020:2023"
+      },
+      "headers": {},
+      "auth_type": "none",
+      "auth_env_var": null,
+      "response_path": "",
+      "role": "primary",
+      "description": "Population data from World Bank"
+    },
+    {
+      "name": "exchangerate_api",
+      "type": "rest_api",
+      "url": "https://open.er-api.com/v6/latest/USD",
+      "method": "GET",
+      "params": {},
+      "headers": {},
+      "auth_type": "none",
+      "auth_env_var": null,
+      "response_path": "",
+      "role": "primary",
+      "description": "Exchange rates data"
+    },
+    {
+      "name": "restcountries_info",
+      "type": "rest_api",
+      "url": "https://restcountries.com/v3.1/all",
+      "method": "GET",
+      "params": {},
+      "headers": {},
+      "auth_type": "none",
+      "auth_env_var": null,
+      "response_path": "",
+      "role": "enrichment",
+      "description": "Country information data"
+    }
+  ],
+  "target": {
+    "database": "postgresql",
+    "table": "public.fact_economic_indicators",
+    "credentials": {
+      "user": "your_db_user",
+      "password": "${DB_PASSWORD}",
+      "host": "your_db_host",
+      "port": 5432
+    }
+  },
+  "pipeline_settings": {
+    "idempotency": true,
+    "upsert_keys": ["country_code", "year"],
+    "audit_logging": true
+  },
+  "retry_policies": {
+    "max_retries": 3,
+    "retry_intervals": [1, 2, 4]
+  },
+  "monitoring": {
+    "enabled": true,
+    "alerting": {
+      "email": "your_email@example.com",
+      "thresholds": {
+        "error_rate": 0.1,
+        "execution_time": 300
+      }
+    }
+  },
+  "schedule": {
+    "frequency": "daily",
+    "time": "02:00 UTC"
+  }
+}
