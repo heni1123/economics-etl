@@ -13,26 +13,31 @@ class DataExtractor:
         self.logger = logging.getLogger(__name__)
     
     async def extract(self) -> List[Dict[str, Any]]:
-        self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(*self.TIMEOUT))
-        url = f"{self.BASE_URL}?format=json&per_page=1000&date=2020:2023"
-        attempt = 0
+        if self.session is None:
+            self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(*self.TIMEOUT))
         
-        while attempt < self.MAX_RETRIES:
+        params = {
+            "format": "json",
+            "per_page": "1000",
+            "date": "2020:2023"
+        }
+        
+        for attempt in range(self.MAX_RETRIES):
             try:
-                async with self.session.get(url, headers={"User-Agent": "ETL-Agent/5.0"}) as response:
+                async with self.session.get(self.BASE_URL, params=params, headers={"User-Agent": "ETL-Agent/5.0"}) as response:
                     if response.status == 429:
                         self.logger.warning("Received 429 Too Many Requests. Retrying after 60 seconds.")
                         await asyncio.sleep(60)
-                        attempt += 1
                         continue
                     response.raise_for_status()
                     data = await response.json()
                     return data[1]  # Extract the actual data from the response
             except aiohttp.ClientError as e:
-                attempt += 1
-                wait_time = 2 ** attempt
-                self.logger.error(f"Error fetching {e}. Retrying in {wait_time} seconds.")
-                await asyncio.sleep(wait_time)
+                self.logger.error(f"Client error: {e}. Attempt {attempt + 1} of {self.MAX_RETRIES}.")
+                await asyncio.sleep(2 ** attempt)  # Exponential backoff
+            except Exception as e:
+                self.logger.error(f"Unexpected error: {e}. Attempt {attempt + 1} of {self.MAX_RETRIES}.")
+                await asyncio.sleep(2 ** attempt)  # Exponential backoff
         
         self.logger.critical("Max retries exceeded. Unable to fetch data.")
         return []
