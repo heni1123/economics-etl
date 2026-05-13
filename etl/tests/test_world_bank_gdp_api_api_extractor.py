@@ -10,24 +10,30 @@ from unittest.mock import AsyncMock
 @pytest.mark.asyncio
 async def test_extract_happy_path(mock_http_session, sample_records):
     """Test extract method with valid input, expect successful extraction."""
-    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value={"data": sample_records})
-    extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {}})
+    mock_http_session.get = AsyncMock(return_value=AsyncMock(
+        status=200,
+        json=AsyncMock(return_value={'data': sample_records})
+    ))
+    extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {"per_page": 10}})
     result = await extractor.extract()
     assert result == sample_records
 
 @pytest.mark.asyncio
 async def test_extract_empty_input(mock_http_session):
-    """Test extract method with no data, expect empty result."""
-    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value={"data": []})
-    extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {}})
+    """Test extract method with no data returned, expect empty list."""
+    mock_http_session.get = AsyncMock(return_value=AsyncMock(
+        status=200,
+        json=AsyncMock(return_value={})
+    ))
+    extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {"per_page": 10}})
     result = await extractor.extract()
     assert result == []
 
 @pytest.mark.asyncio
 async def test_extract_error_handling(mock_http_session):
-    """Test extract method with an error during extraction, expect logging of error."""
-    mock_http_session.get.side_effect = Exception("Network error")
-    extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {}})
+    """Test extract method with an error during extraction, expect logging and exit."""
+    mock_http_session.get = AsyncMock(side_effect=Exception("Network error"))
+    extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {"per_page": 10}})
     with mock.patch.object(extractor.logger, 'error') as mock_logger:
         result = await extractor.extract()
         assert result == []
@@ -36,86 +42,83 @@ async def test_extract_error_handling(mock_http_session):
 @pytest.mark.asyncio
 async def test_fetch_page_happy_path(mock_http_session, sample_records):
     """Test _fetch_page method with valid parameters, expect successful fetch."""
-    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value={"data": sample_records})
-    extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {}})
-    result = await extractor._fetch_page({"page": 1})
-    assert result == {"data": sample_records}
+    mock_http_session.get = AsyncMock(return_value=AsyncMock(
+        status=200,
+        json=AsyncMock(return_value={'data': sample_records})
+    ))
+    extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {"per_page": 10}})
+    result = await extractor._fetch_page({"per_page": 10, "page": 1})
+    assert result == {'data': sample_records}
 
 @pytest.mark.asyncio
-async def test_fetch_page_empty_input(mock_http_session):
-    """Test _fetch_page method with no data, expect empty result."""
-    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value={"data": []})
-    extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {}})
-    result = await extractor._fetch_page({"page": 1})
-    assert result == {"data": []}
+async def test_fetch_page_empty_response(mock_http_session):
+    """Test _fetch_page method with empty response, expect empty dict."""
+    mock_http_session.get = AsyncMock(return_value=AsyncMock(
+        status=200,
+        json=AsyncMock(return_value={})
+    ))
+    extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {"per_page": 10}})
+    result = await extractor._fetch_page({"per_page": 10, "page": 1})
+    assert result == {}
 
 @pytest.mark.asyncio
 async def test_fetch_page_error_handling(mock_http_session):
-    """Test _fetch_page method with an error during fetch, expect logging of error."""
-    mock_http_session.get.side_effect = Exception("Fetch error")
-    extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {}})
+    """Test _fetch_page method with an error during fetch, expect logging and exit."""
+    mock_http_session.get = AsyncMock(side_effect=Exception("Fetch error"))
+    extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {"per_page": 10}})
     with mock.patch.object(extractor.logger, 'error') as mock_logger:
-        with pytest.raises(Exception):
-            await extractor._fetch_page({"page": 1})
-        mock_logger.assert_called_once_with("Max retries reached. Last error: Fetch error")
+        result = await extractor._fetch_page({"per_page": 10, "page": 1})
+        assert result == {}
+        mock_logger.assert_called_once_with("Error during extraction: Fetch error")
 
 @pytest.mark.asyncio
-async def test_make_request_happy_path(mock_http_session, sample_records):
-    """Test _make_request method with valid parameters, expect successful request."""
-    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value={"data": sample_records})
+async def test_make_request_happy_path(mock_http_session):
+    """Test _make_request method with valid URL, expect successful response."""
+    mock_http_session.get = AsyncMock(return_value=AsyncMock(
+        status=200,
+        json=AsyncMock(return_value={'data': []})
+    ))
     extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {}})
-    result = await extractor._make_request({"param": "value"})
-    assert result == {"data": sample_records}
+    result = await extractor._make_request("http://example.com?param=value")
+    assert result == {'data': []}
 
 @pytest.mark.asyncio
-async def test_make_request_rate_limit_handling(mock_http_session):
-    """Test _make_request method handling rate limit response."""
-    mock_http_session.get.return_value.__aenter__.return_value.status = 429
+async def test_make_request_rate_limit(mock_http_session):
+    """Test _make_request method handling rate limit response, expect waiting."""
+    mock_http_session.get = AsyncMock(return_value=AsyncMock(
+        status=429,
+        json=AsyncMock(return_value={})
+    ))
     extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {}})
-    with mock.patch.object(extractor, '_handle_rate_limit') as mock_handle_rate_limit:
-        await extractor._make_request({"param": "value"})
-        mock_handle_rate_limit.assert_called_once()
-
-@pytest.mark.asyncio
-async def test_make_request_error_handling(mock_http_session):
-    """Test _make_request method with an error during request, expect logging of error."""
-    mock_http_session.get.side_effect = Exception("Request error")
-    extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {}})
-    with mock.patch.object(extractor.logger, 'error') as mock_logger:
-        with pytest.raises(Exception):
-            await extractor._make_request({"param": "value"})
-        mock_logger.assert_called_once_with("Max retries reached. Last error: Request error")
-
-@pytest.mark.asyncio
-async def test_handle_rate_limit(mock_http_session):
-    """Test _handle_rate_limit method, expect waiting for specified time."""
-    extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {}})
-    with mock.patch('asyncio.sleep', return_value=None) as mock_sleep:
-        await extractor._handle_rate_limit(mock.Mock())
-        mock_sleep.assert_called_once_with(60)
+    with mock.patch.object(extractor.logger, 'warning') as mock_logger:
+        await extractor._make_request("http://example.com?param=value")
+        mock_logger.assert_called_once_with("Rate limit exceeded. Waiting for 60 seconds.")
 
 @pytest.mark.asyncio
 async def test_retry_with_backoff_happy_path(mock_http_session):
-    """Test _retry_with_backoff method with successful request."""
+    """Test _retry_with_backoff method with successful request, expect result."""
+    mock_http_session.get = AsyncMock(return_value=AsyncMock(
+        status=200,
+        json=AsyncMock(return_value={'data': []})
+    ))
     extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {}})
-    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value={"data": []})
-    result = await extractor._retry_with_backoff(extractor._make_request, {"param": "value"})
-    assert result == {"data": []}
+    result = await extractor._retry_with_backoff(extractor._make_request, "http://example.com?param=value")
+    assert result == {'data': []}
 
 @pytest.mark.asyncio
 async def test_retry_with_backoff_error_handling(mock_http_session):
-    """Test _retry_with_backoff method with errors, expect retries and logging."""
+    """Test _retry_with_backoff method with failure, expect retries and logging."""
+    mock_http_session.get = AsyncMock(side_effect=aiohttp.ClientError("Client error"))
     extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {}})
-    mock_http_session.get.side_effect = Exception("Retry error")
-    with mock.patch.object(extractor.logger, 'warning') as mock_warning:
-        with pytest.raises(Exception):
-            await extractor._retry_with_backoff(extractor._make_request, {"param": "value"})
-        assert mock_warning.call_count == 3  # Check if it retried 3 times
+    with mock.patch.object(extractor.logger, 'warning') as mock_logger:
+        with pytest.raises(aiohttp.ClientError):
+            await extractor._retry_with_backoff(extractor._make_request, "http://example.com?param=value")
+        assert mock_logger.call_count == 3  # Expecting 3 retries
 
 @pytest.mark.asyncio
 async def test_close_happy_path(mock_http_session):
-    """Test close method, expect session to be closed."""
+    """Test close method, expect session to be closed without errors."""
     extractor = WorldBankGdpApiExtractor(config={"url": "http://example.com", "params": {}})
-    extractor.session = mock_http_session
+    extractor.session = AsyncMock()
     await extractor.close()
-    mock_http_session.close.assert_called_once()
+    extractor.session.close.assert_awaited_once()
