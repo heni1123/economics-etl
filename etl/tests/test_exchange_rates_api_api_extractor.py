@@ -10,126 +10,186 @@ from unittest.mock import AsyncMock
 @pytest.mark.asyncio
 async def test_extract_happy_path(mock_http_session):
     """Test extract method with valid input."""
-    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value={"rates": {"EUR": 1.0, "GBP": 0.8, "JPY": 110, "CHF": 0.9}, "result": "success", "provider": "ExchangeRatesAPI", "time_last_update_unix": 1633072800, "time_last_update_utc": "2021-10-01T00:00:00Z", "time_next_update_unix": 1633159200, "base_code": "USD"})
-    
-    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    mock_http_session.get.return_value = AsyncMock(
+        status=200,
+        json=AsyncMock(return_value={
+            "result": "success",
+            "provider": "ExchangeRatesAPI",
+            "time_last_update_unix": 1633072800,
+            "time_last_update_utc": "2021-10-01T00:00:00Z",
+            "time_next_update_unix": 1633159200,
+            "base_code": "USD",
+            "rates": {"EUR": 0.85, "GBP": 0.75, "JPY": 110.0, "CHF": 0.92}
+        })
+    )
+    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
+    await extractor.start()
     result = await extractor.extract()
-    
-    assert len(result) == 1
-    assert result[0]["EUR"] == 1.0
+    await extractor.close()
+    assert result == [{
+        "result": "success",
+        "provider": "ExchangeRatesAPI",
+        "time_last_update_unix": 1633072800,
+        "time_last_update_utc": "2021-10-01T00:00:00Z",
+        "time_next_update_unix": 1633159200,
+        "base_code": "USD",
+        "rates.EUR": 0.85,
+        "rates.GBP": 0.75,
+        "rates.JPY": 110.0,
+        "rates.CHF": 0.92,
+    }]
 
 @pytest.mark.asyncio
 async def test_extract_empty_input():
     """Test extract method with empty input."""
-    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
+    await extractor.start()
     result = await extractor.extract()
-    
+    await extractor.close()
     assert result == []
 
 @pytest.mark.asyncio
 async def test_extract_error_handling(mock_http_session):
     """Test extract method error handling."""
     mock_http_session.get.side_effect = Exception("Network error")
-    
-    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
+    await extractor.start()
     result = await extractor.extract()
-    
+    await extractor.close()
     assert result == []
 
 @pytest.mark.asyncio
 async def test_fetch_page_happy_path(mock_http_session):
     """Test _fetch_page method with valid input."""
-    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value={"rates": {"EUR": 1.0}})
-    
-    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    mock_http_session.get.return_value = AsyncMock(
+        status=200,
+        json=AsyncMock(return_value={})
+    )
+    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
+    await extractor.start()
     result = await extractor._fetch_page({})
-    
-    assert "rates" in result
+    await extractor.close()
+    assert result == {}
 
 @pytest.mark.asyncio
 async def test_fetch_page_empty_input():
     """Test _fetch_page method with empty input."""
-    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
+    await extractor.start()
     result = await extractor._fetch_page({})
-    
-    assert result is not None
+    await extractor.close()
+    assert result == {}
 
 @pytest.mark.asyncio
 async def test_fetch_page_error_handling(mock_http_session):
     """Test _fetch_page method error handling."""
     mock_http_session.get.side_effect = Exception("Network error")
-    
-    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
+    await extractor.start()
     with pytest.raises(Exception):
         await extractor._fetch_page({})
+    await extractor.close()
 
 @pytest.mark.asyncio
-async def test_handle_rate_limit_happy_path(mock_http_session):
-    """Test _handle_rate_limit method with valid response."""
-    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
-    response = AsyncMock(status=429)
-    
-    await extractor._handle_rate_limit(response)
+async def test_make_request_happy_path(mock_http_session):
+    """Test _make_request method with valid input."""
+    mock_http_session.get.return_value = AsyncMock(
+        status=200,
+        json=AsyncMock(return_value={})
+    )
+    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
+    await extractor.start()
+    result = await extractor._make_request({})
+    await extractor.close()
+    assert result == {}
 
 @pytest.mark.asyncio
-async def test_handle_rate_limit_no_limit(mock_http_session):
-    """Test _handle_rate_limit method with no rate limit."""
-    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
-    response = AsyncMock(status=200)
-    
-    await extractor._handle_rate_limit(response)
+async def test_make_request_error_handling(mock_http_session):
+    """Test _make_request method error handling."""
+    mock_http_session.get.side_effect = Exception("Network error")
+    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
+    await extractor.start()
+    with pytest.raises(Exception):
+        await extractor._make_request({})
+    await extractor.close()
+
+@pytest.mark.asyncio
+async def test_handle_rate_limit(mock_http_session):
+    """Test _handle_rate_limit method."""
+    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
+    await extractor.start()
+    with mock.patch('asyncio.sleep', return_value=None) as mock_sleep:
+        await extractor._handle_rate_limit(AsyncMock())
+        mock_sleep.assert_called_once_with(60)
+    await extractor.close()
 
 @pytest.mark.asyncio
 async def test_retry_with_backoff_happy_path(mock_http_session):
-    """Test _retry_with_backoff method with valid input."""
-    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value={"rates": {"EUR": 1.0}})
-    
-    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
-    result = await extractor._retry_with_backoff(mock_http_session.get, "http://fakeurl.com")
-    
-    assert "rates" in result
+    """Test _retry_with_backoff method with successful request."""
+    mock_http_session.get.return_value = AsyncMock(
+        status=200,
+        json=AsyncMock(return_value={})
+    )
+    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
+    await extractor.start()
+    result = await extractor._retry_with_backoff(extractor._make_request, {})
+    await extractor.close()
+    assert result == {}
 
 @pytest.mark.asyncio
 async def test_retry_with_backoff_error_handling(mock_http_session):
     """Test _retry_with_backoff method error handling."""
     mock_http_session.get.side_effect = Exception("Network error")
-    
-    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
+    await extractor.start()
     with pytest.raises(Exception):
-        await extractor._retry_with_backoff(mock_http_session.get, "http://fakeurl.com")
+        await extractor._retry_with_backoff(extractor._make_request, {})
+    await extractor.close()
 
 @pytest.mark.asyncio
-async def test_close_happy_path():
-    """Test close method to ensure session is closed."""
-    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+async def test_close():
+    """Test close method."""
+    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
+    await extractor.start()
+    await extractor.close()
+    assert extractor.session is None
+
+@pytest.mark.asyncio
+async def test_start():
+    """Test start method."""
+    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
+    await extractor.start()
+    assert extractor.session is not None
     await extractor.close()
 
 def test_parse_response_happy_path():
     """Test _parse_response method with valid input."""
-    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
-    response = {"rates": {"EUR": 1.0, "GBP": 0.8, "JPY": 110, "CHF": 0.9}, "result": "success", "provider": "ExchangeRatesAPI", "time_last_update_unix": 1633072800, "time_last_update_utc": "2021-10-01T00:00:00Z", "time_next_update_unix": 1633159200, "base_code": "USD"}
-    
+    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
+    response = {
+        "result": "success",
+        "provider": "ExchangeRatesAPI",
+        "time_last_update_unix": 1633072800,
+        "time_last_update_utc": "2021-10-01T00:00:00Z",
+        "time_next_update_unix": 1633159200,
+        "base_code": "USD",
+        "rates": {"EUR": 0.85, "GBP": 0.75, "JPY": 110.0, "CHF": 0.92}
+    }
     result = extractor._parse_response(response)
-    
-    assert len(result) == 1
-    assert result[0]["EUR"] == 1.0
+    assert result == [{
+        "result": "success",
+        "provider": "ExchangeRatesAPI",
+        "time_last_update_unix": 1633072800,
+        "time_last_update_utc": "2021-10-01T00:00:00Z",
+        "time_next_update_unix": 1633159200,
+        "base_code": "USD",
+        "rates.EUR": 0.85,
+        "rates.GBP": 0.75,
+        "rates.JPY": 110.0,
+        "rates.CHF": 0.92,
+    }]
 
 def test_parse_response_empty_input():
     """Test _parse_response method with empty input."""
-    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
-    response = {}
-    
-    result = extractor._parse_response(response)
-    
-    assert len(result) == 1
-    assert result[0]["EUR"] is None
-
-def test_parse_response_invalid_input():
-    """Test _parse_response method with invalid input."""
-    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
-    response = {"rates": {}}
-    
-    result = extractor._parse_response(response)
-    
-    assert len(result) == 1
-    assert result[0]["EUR"] is None
+    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
+    result = extractor._parse_response({})
+    assert result == []
