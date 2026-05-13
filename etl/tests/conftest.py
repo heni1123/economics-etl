@@ -8,35 +8,35 @@ def sample_records():
         {
             "country_code": "USA",
             "country_name": "United States",
-            "year": "2021",
-            "gdp_usd": "22 trillion",
-            "gdp_billions": "22000",
-            "population": "331 million",
-            "gdp_per_capita": "67000",
-            "gdp_growth_yoy": "5.7%",
-            "population_growth_yoy": "0.7%",
-            "economic_size_category": "Large",
-            "population_category": "High",
+            "year": "2022",
+            "gdp_usd": "22675271",
+            "gdp_billions": "22675.271",
+            "population": "331002651",
+            "gdp_per_capita": "68351",
+            "gdp_growth_yoy": "5.7",
+            "population_growth_yoy": "0.1",
+            "economic_size_category": "High income",
+            "population_category": "Large",
             "development_indicator": "Developed",
-            "region": "Americas",
-            "subregion": "North America",
+            "region": "North America",
+            "subregion": "Northern America",
             "capital_city": "Washington, D.C."
         },
         {
             "country_code": "CAN",
             "country_name": "Canada",
-            "year": "2021",
-            "gdp_usd": "2 trillion",
+            "year": "2022",
+            "gdp_usd": "2000000",
             "gdp_billions": "2000",
-            "population": "38 million",
-            "gdp_per_capita": "52000",
-            "gdp_growth_yoy": "4.5%",
-            "population_growth_yoy": "1.1%",
-            "economic_size_category": "Large",
-            "population_category": "High",
+            "population": "37742154",
+            "gdp_per_capita": "52900",
+            "gdp_growth_yoy": "4.6",
+            "population_growth_yoy": "0.9",
+            "economic_size_category": "High income",
+            "population_category": "Medium",
             "development_indicator": "Developed",
-            "region": "Americas",
-            "subregion": "North America",
+            "region": "North America",
+            "subregion": "Northern America",
             "capital_city": "Ottawa"
         }
     ]
@@ -51,7 +51,7 @@ def invalid_records():
     """Provides a list of records with missing/null required fields."""
     return [
         {"country_code": None, "country_name": "Invalid Country"},
-        {"country_code": "XYZ", "year": "2021"},
+        {"country_code": "XYZ", "year": "2022"},
         {}
     ]
 
@@ -71,12 +71,8 @@ async def mock_db_connection():
 async def mock_http_session():
     """Mocks aiohttp.ClientSession."""
     with mock.patch('aiohttp.ClientSession', create=True) as mock_session:
-        mock_instance = mock.AsyncMock()
-        mock_instance.get.return_value = mock.AsyncMock(json=mock.AsyncMock(return_value={}))
-        mock_instance.__aenter__.return_value = mock_instance
-        mock_instance.__aexit__.return_value = False
-        mock_session.return_value = mock_instance
-        yield mock_instance
-
-pytest_plugins = ["pytest_asyncio"]
-asyncio_mode = "auto"
+        mock_session_instance = mock.AsyncMock()
+        mock_session_instance.get.return_value.__aenter__.return_value = mock.AsyncMock(json=mock.AsyncMock(return_value={}))
+        mock_session_instance.post.return_value.__aenter__.return_value = mock.AsyncMock(json=mock.AsyncMock(return_value={}))
+        mock_session.return_value = mock_session_instance
+        yield mock_session_instance
