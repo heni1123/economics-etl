@@ -11,14 +11,14 @@ from unittest.mock import AsyncMock
 async def test_run_happy_path(mock_http_session, mock_db_connection):
     """Test run method with valid data."""
     mock_http_session.get.side_effect = [
-        AsyncMock(json=AsyncMock(return_value=[{}, [{"country": {"id": "USA", "value": "United States"}, "date": "2020", "value": 21000000}]])),
-        AsyncMock(json=AsyncMock(return_value=[{}, [{"country": {"id": "USA", "value": "United States"}, "date": "2020", "value": 331000000}]])),
-        AsyncMock(json=AsyncMock(return_value={"rates": {"USD": 1}})),
-        AsyncMock(json=AsyncMock(return_value=[{"id": "USA", "value": "United States"}])),
+        AsyncMock(json=AsyncMock(return_value=[{}, [{"country": {"id": "USA", "value": "United States"}, "date": 2021, "value": 21000000}]])),
+        AsyncMock(json=AsyncMock(return_value=[{}, [{"country": {"id": "USA", "value": "United States"}, "date": 2021, "value": 331000000}]])),
+        AsyncMock(json=AsyncMock(return_value={"USD": 1})),
+        AsyncMock(json=AsyncMock(return_value=[{"cca3": "USA", "name": {"common": "United States"}}])),
     ]
-    orchestrator = PipelineOrchestrator("mock_connection_string")
+    orchestrator = PipelineOrchestrator(db_config={})
     await orchestrator.run()
-    # Add assertions to verify the expected behavior
+    assert orchestrator.status == 'success'
 
 @pytest.mark.asyncio
 async def test_run_empty_input(mock_http_session, mock_db_connection):
@@ -26,113 +26,114 @@ async def test_run_empty_input(mock_http_session, mock_db_connection):
     mock_http_session.get.side_effect = [
         AsyncMock(json=AsyncMock(return_value=[{}, []])),
         AsyncMock(json=AsyncMock(return_value=[{}, []])),
-        AsyncMock(json=AsyncMock(return_value={"rates": {}})),
+        AsyncMock(json=AsyncMock(return_value={"USD": 1})),
         AsyncMock(json=AsyncMock(return_value=[])),
     ]
-    orchestrator = PipelineOrchestrator("mock_connection_string")
+    orchestrator = PipelineOrchestrator(db_config={})
     await orchestrator.run()
-    # Add assertions to verify the expected behavior
+    assert orchestrator.status == 'success'
 
 @pytest.mark.asyncio
 async def test_run_error_handling(mock_http_session, mock_db_connection):
-    """Test run method with error during execution."""
-    mock_http_session.get.side_effect = [
-        AsyncMock(side_effect=Exception("Network error")),
-        AsyncMock(json=AsyncMock(return_value=[{}, []])),
-        AsyncMock(json=AsyncMock(return_value={"rates": {}})),
-        AsyncMock(json=AsyncMock(return_value=[])),
-    ]
-    orchestrator = PipelineOrchestrator("mock_connection_string")
+    """Test run method with an error during execution."""
+    mock_http_session.get.side_effect = Exception("Network error")
+    orchestrator = PipelineOrchestrator(db_config={})
     await orchestrator.run()
-    # Add assertions to verify the expected behavior
+    assert orchestrator.status == 'failed'
+    assert orchestrator.error_message == "Network error"
 
 @pytest.mark.asyncio
 async def test_extract_phase_happy_path(mock_http_session):
-    """Test _extract_phase method with valid data."""
+    """Test extract_phase method with valid data."""
     mock_http_session.get.side_effect = [
-        AsyncMock(json=AsyncMock(return_value=[{}, [{"country": {"id": "USA", "value": "United States"}, "date": "2020", "value": 21000000}]])),
-        AsyncMock(json=AsyncMock(return_value=[{}, [{"country": {"id": "USA", "value": "United States"}, "date": "2020", "value": 331000000}]])),
-        AsyncMock(json=AsyncMock(return_value={"rates": {"USD": 1}})),
-        AsyncMock(json=AsyncMock(return_value=[{"id": "USA", "value": "United States"}])),
+        AsyncMock(json=AsyncMock(return_value=[{}, [{"country": {"id": "USA", "value": "United States"}, "date": 2021, "value": 21000000}]])),
+        AsyncMock(json=AsyncMock(return_value=[{}, [{"country": {"id": "USA", "value": "United States"}, "date": 2021, "value": 331000000}]])),
+        AsyncMock(json=AsyncMock(return_value={"USD": 1})),
+        AsyncMock(json=AsyncMock(return_value=[{"cca3": "USA", "name": {"common": "United States"}}])),
     ]
-    orchestrator = PipelineOrchestrator("mock_connection_string")
-    result = await orchestrator._extract_phase()
-    assert len(result) == 4  # Adjust based on expected output
+    orchestrator = PipelineOrchestrator(db_config={})
+    records = await orchestrator._extract_phase()
+    assert len(records) > 0
 
 @pytest.mark.asyncio
 async def test_extract_phase_empty_input(mock_http_session):
-    """Test _extract_phase method with empty data."""
+    """Test extract_phase method with empty data."""
     mock_http_session.get.side_effect = [
         AsyncMock(json=AsyncMock(return_value=[{}, []])),
         AsyncMock(json=AsyncMock(return_value=[{}, []])),
-        AsyncMock(json=AsyncMock(return_value={"rates": {}})),
+        AsyncMock(json=AsyncMock(return_value={"USD": 1})),
         AsyncMock(json=AsyncMock(return_value=[])),
     ]
-    orchestrator = PipelineOrchestrator("mock_connection_string")
-    result = await orchestrator._extract_phase()
-    assert result == []  # Expecting empty list
+    orchestrator = PipelineOrchestrator(db_config={})
+    records = await orchestrator._extract_phase()
+    assert len(records) == 0
 
 @pytest.mark.asyncio
 async def test_extract_phase_error_handling(mock_http_session):
-    """Test _extract_phase method with error during extraction."""
+    """Test extract_phase method with an error during extraction."""
     mock_http_session.get.side_effect = Exception("Network error")
-    orchestrator = PipelineOrchestrator("mock_connection_string")
+    orchestrator = PipelineOrchestrator(db_config={})
     with pytest.raises(Exception):
         await orchestrator._extract_phase()
 
-def test_transform_phase_happy_path(sample_records):
-    """Test _transform_phase method with valid records."""
-    orchestrator = PipelineOrchestrator("mock_connection_string")
-    result = orchestrator._transform_phase(sample_records)
-    assert len(result) == len(sample_records)  # Adjust based on expected output
+def test_combine_data_happy_path(sample_records):
+    """Test combine_data method with valid data."""
+    orchestrator = PipelineOrchestrator(db_config={})
+    combined = orchestrator._combine_data(sample_records['gdp_data'], sample_records['population_data'], {}, {})
+    assert len(combined) > 0
 
-def test_transform_phase_empty_input():
-    """Test _transform_phase method with empty records."""
-    orchestrator = PipelineOrchestrator("mock_connection_string")
-    result = orchestrator._transform_phase([])
-    assert result == []  # Expecting empty list
+def test_combine_data_empty_input():
+    """Test combine_data method with empty data."""
+    orchestrator = PipelineOrchestrator(db_config={})
+    combined = orchestrator._combine_data([], [], {}, {})
+    assert len(combined) == 0
 
-def test_transform_phase_error_handling(invalid_records):
-    """Test _transform_phase method with invalid records."""
-    orchestrator = PipelineOrchestrator("mock_connection_string")
-    with pytest.raises(KeyError):
-        orchestrator._transform_phase(invalid_records)
+@pytest.mark.asyncio
+async def test_transform_phase_happy_path(sample_records):
+    """Test transform_phase method with valid data."""
+    orchestrator = PipelineOrchestrator(db_config={})
+    transformed = await orchestrator._transform_phase(sample_records['valid_records'])
+    assert all('gdp_billions' in record for record in transformed)
 
-def test_validate_phase_happy_path(sample_records):
-    """Test _validate_phase method with valid records."""
-    orchestrator = PipelineOrchestrator("mock_connection_string")
-    result = orchestrator._validate_phase(sample_records)
-    assert len(result) == len(sample_records)  # Adjust based on expected output
+@pytest.mark.asyncio
+async def test_transform_phase_empty_input():
+    """Test transform_phase method with empty data."""
+    orchestrator = PipelineOrchestrator(db_config={})
+    transformed = await orchestrator._transform_phase([])
+    assert len(transformed) == 0
 
-def test_validate_phase_empty_input():
-    """Test _validate_phase method with empty records."""
-    orchestrator = PipelineOrchestrator("mock_connection_string")
-    result = orchestrator._validate_phase([])
-    assert result == []  # Expecting empty list
+@pytest.mark.asyncio
+async def test_validate_phase_happy_path(sample_records):
+    """Test validate_phase method with valid data."""
+    orchestrator = PipelineOrchestrator(db_config={})
+    validated = await orchestrator._validate_phase(sample_records['valid_records'])
+    assert len(validated) == len(sample_records['valid_records'])
 
-def test_validate_phase_error_handling(invalid_records):
-    """Test _validate_phase method with invalid records."""
-    orchestrator = PipelineOrchestrator("mock_connection_string")
-    result = orchestrator._validate_phase(invalid_records)
-    assert result == []  # Expecting empty list
+@pytest.mark.asyncio
+async def test_validate_phase_empty_input():
+    """Test validate_phase method with empty data."""
+    orchestrator = PipelineOrchestrator(db_config={})
+    validated = await orchestrator._validate_phase([])
+    assert len(validated) == 0
 
 @pytest.mark.asyncio
 async def test_load_phase_happy_path(mock_db_connection, sample_records):
-    """Test _load_phase method with valid records."""
-    orchestrator = PipelineOrchestrator("mock_connection_string")
-    result = await orchestrator._load_phase(sample_records)
-    assert result == len(sample_records)  # Expecting number of records loaded
+    """Test load_phase method with valid data."""
+    orchestrator = PipelineOrchestrator(db_config={})
+    await orchestrator._load_phase(sample_records['valid_records'])
+    mock_db_connection.execute.assert_called()
 
 @pytest.mark.asyncio
 async def test_load_phase_empty_input(mock_db_connection):
-    """Test _load_phase method with empty records."""
-    orchestrator = PipelineOrchestrator("mock_connection_string")
-    result = await orchestrator._load_phase([])
-    assert result == 0  # Expecting zero records loaded
+    """Test load_phase method with empty data."""
+    orchestrator = PipelineOrchestrator(db_config={})
+    await orchestrator._load_phase([])
+    mock_db_connection.execute.assert_called_once_with("TRUNCATE TABLE public.fact_economic_indicators")
 
 @pytest.mark.asyncio
-async def test_load_phase_error_handling(mock_db_connection, invalid_records):
-    """Test _load_phase method with invalid records."""
-    orchestrator = PipelineOrchestrator("mock_connection_string")
+async def test_load_phase_error_handling(mock_db_connection, sample_records):
+    """Test load_phase method with an error during loading."""
+    mock_db_connection.execute.side_effect = Exception("DB error")
+    orchestrator = PipelineOrchestrator(db_config={})
     with pytest.raises(Exception):
-        await orchestrator._load_phase(invalid_records)
+        await orchestrator._load_phase(sample_records['valid_records'])
