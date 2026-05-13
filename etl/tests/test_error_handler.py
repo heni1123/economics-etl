@@ -41,23 +41,33 @@ async def test_retry_with_backoff_error_handling(logger):
     async def failing_function():
         raise Exception("Simulated failure")
 
-    with mock.patch.object(logger, 'error') as mock_error:
+    with mock.patch.object(logger, 'error') as mock_error, mock.patch.object(logger, 'critical') as mock_critical:
         with pytest.raises(Exception, match="Function failing_function failed after 3 attempts."):
             await error_handler.retry_with_backoff(failing_function)
-        assert mock_error.call_count == 4  # 3 retries + final error log
 
-def test_log_audit(logger):
-    """Test log_audit logs the correct information."""
+        assert mock_error.call_count == 3
+        assert mock_critical.call_count == 1
+
+def test_log_audit_happy_path(logger):
+    """Test log_audit with valid input."""
     error_handler = ErrorHandler(logger)
-
+    
     with mock.patch.object(logger, 'info') as mock_info:
         error_handler.log_audit(10, 5, "success")
         mock_info.assert_called_once_with("Audit Log - Rows Extracted: 10, Rows Loaded: 5, Status: success, Error Message: ")
 
-def test_log_audit_with_error_message(logger):
-    """Test log_audit with an error message."""
+def test_log_audit_empty_message(logger):
+    """Test log_audit with an empty error message."""
     error_handler = ErrorHandler(logger)
+    
+    with mock.patch.object(logger, 'info') as mock_info:
+        error_handler.log_audit(10, 5, "success", "")
+        mock_info.assert_called_once_with("Audit Log - Rows Extracted: 10, Rows Loaded: 5, Status: success, Error Message: ")
 
+def test_log_audit_with_error_message(logger):
+    """Test log_audit with a non-empty error message."""
+    error_handler = ErrorHandler(logger)
+    
     with mock.patch.object(logger, 'info') as mock_info:
         error_handler.log_audit(10, 5, "failed", "Some error occurred")
         mock_info.assert_called_once_with("Audit Log - Rows Extracted: 10, Rows Loaded: 5, Status: failed, Error Message: Some error occurred")
