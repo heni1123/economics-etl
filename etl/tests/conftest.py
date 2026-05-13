@@ -5,9 +5,57 @@ from unittest import mock
 def sample_records():
     """Provides a list of valid records matching the fact_economic_indicators schema."""
     return [
-        {"id": 1, "name": "Country A", "gdp": 1000.0, "population": 5000000, "exchange_rate": 1.0},
-        {"id": 2, "name": "Country B", "gdp": 2000.0, "population": 10000000, "exchange_rate": 1.5},
-        {"id": 3, "name": "Country C", "gdp": 1500.0, "population": 7500000, "exchange_rate": 0.8},
+        {
+            "country_code": "USA",
+            "country_name": "United States",
+            "year": "2021",
+            "gdp_usd": "22 trillion",
+            "gdp_billions": "22000",
+            "population": "331 million",
+            "gdp_per_capita": "67000",
+            "gdp_growth_yoy": "5.7%",
+            "population_growth_yoy": "0.7%",
+            "economic_size_category": "Large",
+            "population_category": "High",
+            "development_indicator": "Developed",
+            "region": "Americas",
+            "subregion": "North America",
+            "capital_city": "Washington, D.C."
+        },
+        {
+            "country_code": "CAN",
+            "country_name": "Canada",
+            "year": "2021",
+            "gdp_usd": "2 trillion",
+            "gdp_billions": "2000",
+            "population": "38 million",
+            "gdp_per_capita": "52000",
+            "gdp_growth_yoy": "4.5%",
+            "population_growth_yoy": "1.1%",
+            "economic_size_category": "Large",
+            "population_category": "High",
+            "development_indicator": "Developed",
+            "region": "Americas",
+            "subregion": "North America",
+            "capital_city": "Ottawa"
+        },
+        {
+            "country_code": "IND",
+            "country_name": "India",
+            "year": "2021",
+            "gdp_usd": "3 trillion",
+            "gdp_billions": "3000",
+            "population": "1.366 billion",
+            "gdp_per_capita": "2200",
+            "gdp_growth_yoy": "9.5%",
+            "population_growth_yoy": "1.0%",
+            "economic_size_category": "Emerging",
+            "population_category": "Medium",
+            "development_indicator": "Developing",
+            "region": "Asia",
+            "subregion": "South Asia",
+            "capital_city": "New Delhi"
+        }
     ]
 
 @pytest.fixture
@@ -17,11 +65,11 @@ def empty_records():
 
 @pytest.fixture
 def invalid_records():
-    """Provides a list of records with missing or null required fields."""
+    """Provides a list of records with missing/null required fields."""
     return [
-        {"id": None, "name": "Country D", "gdp": 3000.0, "population": 2000000, "exchange_rate": 1.2},
-        {"id": "invalid_type", "name": None, "gdp": 2500.0, "population": 3000000, "exchange_rate": 1.1},
-        {},
+        {"country_code": None, "country_name": "Invalid Country"},
+        {"country_code": "XYZ", "country_name": None, "year": "2021"},
+        {}
     ]
 
 @pytest.fixture
@@ -41,7 +89,10 @@ async def mock_http_session():
     """Mocks aiohttp.ClientSession."""
     with mock.patch('aiohttp.ClientSession', create=True) as mock_session:
         mock_instance = mock.AsyncMock()
-        mock_instance.get.return_value.__aenter__.return_value = mock.AsyncMock(json=mock.AsyncMock(return_value={}))
-        mock_instance.post.return_value.__aenter__.return_value = mock.AsyncMock(json=mock.AsyncMock(return_value={}))
+        mock_instance.get.return_value = mock.AsyncMock(json=mock.AsyncMock(return_value={}))
+        mock_instance.post.return_value = mock.AsyncMock(json=mock.AsyncMock(return_value={}))
         mock_session.return_value = mock_instance
         yield mock_instance
+
+pytest_plugins = ["pytest_asyncio"]
+asyncio_mode = "auto"
