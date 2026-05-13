@@ -9,151 +9,99 @@ from unittest.mock import AsyncMock
 
 @pytest.mark.asyncio
 async def test_extract_happy_path(mock_http_session):
-    """Test extract method with valid input."""
-    mock_http_session.get.return_value.__aenter__.return_value.status = 200
-    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[{"name": {"common": "Country A", "official": "Country A Official"}, "cca3": "CTA", "capital": "Capital A", "region": "Region A", "subregion": "Subregion A", "population": 1000000, "area": 10000, "languages": {"lang": "Language A"}, "currencies": {"currency": "Currency A"}}])
-    
-    extractor = RestCountriesApiExtractor({"url": "http://example.com"})
+    """Test extract method with valid input, expect success."""
+    mock_http_session.get.return_value = AsyncMock(status=200, json=AsyncMock(return_value=[{"name": {"common": "Country A", "official": "Country A Official"}, "cca3": "CTA", "capital": "Capital A", "region": "Region A", "subregion": "Subregion A", "population": 1000000, "area": 50000}]))
+    extractor = RestCountriesApiExtractor({"url": "http://fakeurl.com"})
     result = await extractor.extract()
-    
-    assert len(result) == 1
-    assert result[0]["name_common"] == "Country A"
+    assert result == [{"name_common": "Country A", "name_official": "Country A Official", "cca3": "CTA", "capital": "Capital A", "region": "Region A", "subregion": "Subregion A", "population": 1000000, "area": 50000}]
 
 @pytest.mark.asyncio
 async def test_extract_empty_input():
-    """Test extract method with empty input."""
-    extractor = RestCountriesApiExtractor({"url": "http://example.com"})
+    """Test extract method with empty input, expect empty list."""
+    extractor = RestCountriesApiExtractor({"url": "http://fakeurl.com"})
     result = await extractor.extract()
-    
     assert result == []
 
 @pytest.mark.asyncio
 async def test_extract_error_handling(mock_http_session):
-    """Test extract method error handling."""
-    mock_http_session.get.return_value.__aenter__.side_effect = Exception("Network error")
-    
-    extractor = RestCountriesApiExtractor({"url": "http://example.com"})
+    """Test extract method error handling with non-200 response."""
+    mock_http_session.get.return_value = AsyncMock(status=500)
+    extractor = RestCountriesApiExtractor({"url": "http://fakeurl.com"})
     result = await extractor.extract()
-    
     assert result == []
 
 @pytest.mark.asyncio
 async def test_fetch_page_happy_path(mock_http_session):
-    """Test _fetch_page method with valid input."""
-    mock_http_session.get.return_value.__aenter__.return_value.status = 200
-    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[{"name": {"common": "Country A"}, "cca3": "CTA"}])
-    
-    extractor = RestCountriesApiExtractor({"url": "http://example.com"})
+    """Test _fetch_page method with valid input, expect transformed data."""
+    mock_http_session.get.return_value = AsyncMock(status=200, json=AsyncMock(return_value=[{"name": {"common": "Country A", "official": "Country A Official"}, "cca3": "CTA", "capital": "Capital A", "region": "Region A", "subregion": "Subregion A", "population": 1000000, "area": 50000}]))
+    extractor = RestCountriesApiExtractor({"url": "http://fakeurl.com"})
     result = await extractor._fetch_page({})
-    
-    assert len(result) == 1
-    assert result[0]["name_common"] == "Country A"
+    assert result == [{"name_common": "Country A", "name_official": "Country A Official", "cca3": "CTA", "capital": "Capital A", "region": "Region A", "subregion": "Subregion A", "population": 1000000, "area": 50000}]
 
 @pytest.mark.asyncio
 async def test_fetch_page_empty_input():
-    """Test _fetch_page method with empty input."""
-    extractor = RestCountriesApiExtractor({"url": "http://example.com"})
+    """Test _fetch_page method with empty input, expect empty list."""
+    extractor = RestCountriesApiExtractor({"url": "http://fakeurl.com"})
     result = await extractor._fetch_page({})
-    
     assert result == []
 
 @pytest.mark.asyncio
 async def test_fetch_page_error_handling(mock_http_session):
-    """Test _fetch_page method error handling."""
-    mock_http_session.get.return_value.__aenter__.side_effect = Exception("Network error")
-    
-    extractor = RestCountriesApiExtractor({"url": "http://example.com"})
-    with pytest.raises(Exception):
-        await extractor._fetch_page({})
+    """Test _fetch_page method error handling with non-200 response."""
+    mock_http_session.get.return_value = AsyncMock(status=404)
+    extractor = RestCountriesApiExtractor({"url": "http://fakeurl.com"})
+    result = await extractor._fetch_page({})
+    assert result == []
 
 @pytest.mark.asyncio
-async def test_make_request_happy_path(mock_http_session):
-    """Test _make_request method with valid input."""
-    mock_http_session.get.return_value.__aenter__.return_value.status = 200
-    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[{"name": {"common": "Country A"}, "cca3": "CTA"}])
-    
-    extractor = RestCountriesApiExtractor({"url": "http://example.com"})
-    result = await extractor._make_request({})
-    
-    assert len(result) == 1
-    assert result[0]["name_common"] == "Country A"
-
-@pytest.mark.asyncio
-async def test_make_request_error_handling(mock_http_session):
-    """Test _make_request method error handling."""
-    mock_http_session.get.return_value.__aenter__.side_effect = Exception("Network error")
-    
-    extractor = RestCountriesApiExtractor({"url": "http://example.com"})
-    with pytest.raises(Exception):
-        await extractor._make_request({})
-
-@pytest.mark.asyncio
-async def test_handle_rate_limit(mock_http_session):
-    """Test _handle_rate_limit method."""
-    extractor = RestCountriesApiExtractor({"url": "http://example.com"})
-    with mock.patch('asyncio.sleep', return_value=None) as mock_sleep:
-        await extractor._handle_rate_limit(None)
-        mock_sleep.assert_called_once_with(60)
+async def test_handle_rate_limit():
+    """Test _handle_rate_limit method with rate limit response."""
+    extractor = RestCountriesApiExtractor({"url": "http://fakeurl.com"})
+    response = AsyncMock(status=429)
+    with mock.patch('asyncio.sleep', return_value=None) as sleep_mock:
+        await extractor._handle_rate_limit(response)
+        sleep_mock.assert_called_once_with(60)
 
 @pytest.mark.asyncio
 async def test_retry_with_backoff_happy_path(mock_http_session):
-    """Test _retry_with_backoff method with successful retry."""
-    mock_http_session.get.return_value.__aenter__.return_value.status = 200
-    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[{"name": {"common": "Country A"}, "cca3": "CTA"}])
-    
-    extractor = RestCountriesApiExtractor({"url": "http://example.com"})
-    result = await extractor._retry_with_backoff(extractor._make_request, {})
-    
-    assert len(result) == 1
-    assert result[0]["name_common"] == "Country A"
+    """Test _retry_with_backoff method with successful response."""
+    mock_http_session.get.return_value = AsyncMock(status=200)
+    extractor = RestCountriesApiExtractor({"url": "http://fakeurl.com"})
+    response = await extractor._retry_with_backoff(mock_http_session.get, "http://fakeurl.com")
+    assert response.status == 200
 
 @pytest.mark.asyncio
 async def test_retry_with_backoff_error_handling(mock_http_session):
-    """Test _retry_with_backoff method error handling."""
-    mock_http_session.get.return_value.__aenter__.side_effect = Exception("Network error")
-    
-    extractor = RestCountriesApiExtractor({"url": "http://example.com"})
-    with pytest.raises(Exception):
-        await extractor._retry_with_backoff(extractor._make_request, {})
-
-@pytest.mark.asyncio
-async def test_init_session():
-    """Test _init_session method."""
-    extractor = RestCountriesApiExtractor({"url": "http://example.com"})
-    await extractor._init_session()
-    
-    assert extractor.session is not None
+    """Test _retry_with_backoff method with client error."""
+    mock_http_session.get.side_effect = [AsyncMock(status=500), AsyncMock(status=200)]
+    extractor = RestCountriesApiExtractor({"url": "http://fakeurl.com"})
+    response = await extractor._retry_with_backoff(mock_http_session.get, "http://fakeurl.com")
+    assert response.status == 200
 
 @pytest.mark.asyncio
 async def test_close():
-    """Test close method."""
-    extractor = RestCountriesApiExtractor({"url": "http://example.com"})
-    await extractor._init_session()
+    """Test close method to ensure session is closed."""
+    extractor = RestCountriesApiExtractor({"url": "http://fakeurl.com"})
+    extractor.session = AsyncMock()
     await extractor.close()
-    
-    assert extractor.session is None
+    extractor.session.close.assert_called_once()
 
-def test_parse_response_happy_path():
-    """Test _parse_response method with valid input."""
-    extractor = RestCountriesApiExtractor({"url": "http://example.com"})
-    data = [{"name": {"common": "Country A", "official": "Country A Official"}, "cca3": "CTA", "capital": "Capital A", "region": "Region A", "subregion": "Subregion A", "population": 1000000, "area": 10000, "languages": {"lang": "Language A"}, "currencies": {"currency": "Currency A"}}]
-    result = extractor._parse_response(data)
-    
-    assert len(result) == 1
-    assert result[0]["name_common"] == "Country A"
+def test_transform_data_happy_path():
+    """Test _transform_data method with valid input, expect transformed output."""
+    extractor = RestCountriesApiExtractor({"url": "http://fakeurl.com"})
+    data = [{"name": {"common": "Country A", "official": "Country A Official"}, "cca3": "CTA", "capital": "Capital A", "region": "Region A", "subregion": "Subregion A", "population": 1000000, "area": 50000}]
+    result = extractor._transform_data(data)
+    assert result == [{"name_common": "Country A", "name_official": "Country A Official", "cca3": "CTA", "capital": "Capital A", "region": "Region A", "subregion": "Subregion A", "population": 1000000, "area": 50000}]
 
-def test_parse_response_empty_input():
-    """Test _parse_response method with empty input."""
-    extractor = RestCountriesApiExtractor({"url": "http://example.com"})
-    result = extractor._parse_response([])
-    
+def test_transform_data_empty_input():
+    """Test _transform_data method with empty input, expect empty list."""
+    extractor = RestCountriesApiExtractor({"url": "http://fakeurl.com"})
+    result = extractor._transform_data([])
     assert result == []
 
-def test_parse_response_invalid_input():
-    """Test _parse_response method with invalid input."""
-    extractor = RestCountriesApiExtractor({"url": "http://example.com"})
+def test_transform_data_invalid_input():
+    """Test _transform_data method with invalid input, expect empty list."""
+    extractor = RestCountriesApiExtractor({"url": "http://fakeurl.com"})
     data = [{"name": {"common": "Country A"}, "cca3": "CTA"}]  # Missing required fields
-    result = extractor._parse_response(data)
-    
-    assert len(result) == 1
-    assert "name_official" not in result[0]  # Check for missing field
+    result = extractor._transform_data(data)
+    assert result == [{"name_common": "Country A", "name_official": None, "cca3": "CTA", "capital": None, "region": None, "subregion": None, "population": None, "area": None}]
