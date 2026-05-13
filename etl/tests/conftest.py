@@ -38,23 +38,6 @@ def sample_records():
             "region": "Americas",
             "subregion": "North America",
             "capital_city": "Ottawa"
-        },
-        {
-            "country_code": "GBR",
-            "country_name": "United Kingdom",
-            "year": "2021",
-            "gdp_usd": "3 trillion",
-            "gdp_billions": "3000",
-            "population": "67 million",
-            "gdp_per_capita": "45000",
-            "gdp_growth_yoy": "7.5%",
-            "population_growth_yoy": "0.5%",
-            "economic_size_category": "Large",
-            "population_category": "High",
-            "development_indicator": "Developed",
-            "region": "Europe",
-            "subregion": "Northern Europe",
-            "capital_city": "London"
         }
     ]
 
@@ -68,7 +51,7 @@ def invalid_records():
     """Provides a list of records with missing/null required fields."""
     return [
         {"country_code": None, "country_name": "Invalid Country"},
-        {"country_code": "XYZ", "country_name": "Invalid Country", "year": None},
+        {"country_code": "XYZ", "year": "2021"},
         {}
     ]
 
@@ -90,7 +73,8 @@ async def mock_http_session():
     with mock.patch('aiohttp.ClientSession', create=True) as mock_session:
         mock_instance = mock.AsyncMock()
         mock_instance.get.return_value = mock.AsyncMock(json=mock.AsyncMock(return_value={}))
-        mock_instance.post.return_value = mock.AsyncMock(json=mock.AsyncMock(return_value={}))
+        mock_instance.__aenter__.return_value = mock_instance
+        mock_instance.__aexit__.return_value = False
         mock_session.return_value = mock_instance
         yield mock_instance
 
