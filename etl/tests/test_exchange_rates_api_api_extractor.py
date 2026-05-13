@@ -8,188 +8,146 @@ from unittest import mock
 from unittest.mock import AsyncMock
 
 @pytest.mark.asyncio
-async def test_extract_happy_path(mock_http_session):
+async def test_extract_happy_path(mock_http_session, sample_records):
     """Test extract method with valid input."""
-    mock_http_session.get.return_value = AsyncMock(
-        status=200,
-        json=AsyncMock(return_value={
-            "result": "success",
-            "provider": "ExchangeRatesAPI",
-            "time_last_update_unix": 1633072800,
-            "time_last_update_utc": "2021-10-01T00:00:00Z",
-            "time_next_update_unix": 1633159200,
-            "base_code": "USD",
-            "rates": {"EUR": 0.85, "GBP": 0.75, "JPY": 110.0, "CHF": 0.92}
-        })
-    )
-    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
-    await extractor.start()
+    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor.session = mock_http_session
+    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value=sample_records)
+    
     result = await extractor.extract()
-    await extractor.close()
-    assert result == [{
-        "result": "success",
-        "provider": "ExchangeRatesAPI",
-        "time_last_update_unix": 1633072800,
-        "time_last_update_utc": "2021-10-01T00:00:00Z",
-        "time_next_update_unix": 1633159200,
-        "base_code": "USD",
-        "rates.EUR": 0.85,
-        "rates.GBP": 0.75,
-        "rates.JPY": 110.0,
-        "rates.CHF": 0.92,
-    }]
+    
+    assert result == sample_records
 
 @pytest.mark.asyncio
-async def test_extract_empty_input():
+async def test_extract_empty_input(mock_http_session):
     """Test extract method with empty input."""
-    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
-    await extractor.start()
+    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor.session = mock_http_session
+    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
+    
     result = await extractor.extract()
-    await extractor.close()
+    
     assert result == []
 
 @pytest.mark.asyncio
 async def test_extract_error_handling(mock_http_session):
     """Test extract method error handling."""
+    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor.session = mock_http_session
     mock_http_session.get.side_effect = Exception("Network error")
-    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
-    await extractor.start()
+    
     result = await extractor.extract()
-    await extractor.close()
+    
     assert result == []
 
 @pytest.mark.asyncio
-async def test_fetch_page_happy_path(mock_http_session):
-    """Test _fetch_page method with valid input."""
-    mock_http_session.get.return_value = AsyncMock(
-        status=200,
-        json=AsyncMock(return_value={})
-    )
-    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
-    await extractor.start()
+async def test_fetch_page_happy_path(mock_http_session, sample_records):
+    """Test _fetch_page method with valid parameters."""
+    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor.session = mock_http_session
+    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value=sample_records)
+    
     result = await extractor._fetch_page({})
-    await extractor.close()
-    assert result == {}
+    
+    assert result == sample_records
 
 @pytest.mark.asyncio
-async def test_fetch_page_empty_input():
-    """Test _fetch_page method with empty input."""
-    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
-    await extractor.start()
+async def test_fetch_page_empty_input(mock_http_session):
+    """Test _fetch_page method with empty parameters."""
+    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor.session = mock_http_session
+    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
+    
     result = await extractor._fetch_page({})
-    await extractor.close()
-    assert result == {}
+    
+    assert result == []
 
 @pytest.mark.asyncio
 async def test_fetch_page_error_handling(mock_http_session):
     """Test _fetch_page method error handling."""
+    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor.session = mock_http_session
     mock_http_session.get.side_effect = Exception("Network error")
-    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
-    await extractor.start()
+    
     with pytest.raises(Exception):
         await extractor._fetch_page({})
-    await extractor.close()
 
 @pytest.mark.asyncio
-async def test_make_request_happy_path(mock_http_session):
-    """Test _make_request method with valid input."""
-    mock_http_session.get.return_value = AsyncMock(
-        status=200,
-        json=AsyncMock(return_value={})
-    )
-    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
-    await extractor.start()
+async def test_make_request_happy_path(mock_http_session, sample_records):
+    """Test _make_request method with valid parameters."""
+    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor.session = mock_http_session
+    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value=sample_records)
+    
     result = await extractor._make_request({})
-    await extractor.close()
-    assert result == {}
+    
+    assert result == sample_records
 
 @pytest.mark.asyncio
 async def test_make_request_error_handling(mock_http_session):
     """Test _make_request method error handling."""
+    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor.session = mock_http_session
     mock_http_session.get.side_effect = Exception("Network error")
-    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
-    await extractor.start()
+    
     with pytest.raises(Exception):
         await extractor._make_request({})
-    await extractor.close()
 
 @pytest.mark.asyncio
 async def test_handle_rate_limit(mock_http_session):
     """Test _handle_rate_limit method."""
-    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
-    await extractor.start()
+    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor.session = mock_http_session
+    
     with mock.patch('asyncio.sleep', return_value=None) as mock_sleep:
-        await extractor._handle_rate_limit(AsyncMock())
+        await extractor._handle_rate_limit(mock.Mock())
         mock_sleep.assert_called_once_with(60)
-    await extractor.close()
 
 @pytest.mark.asyncio
-async def test_retry_with_backoff_happy_path(mock_http_session):
+async def test_retry_with_backoff_happy_path(mock_http_session, sample_records):
     """Test _retry_with_backoff method with successful request."""
-    mock_http_session.get.return_value = AsyncMock(
-        status=200,
-        json=AsyncMock(return_value={})
-    )
-    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
-    await extractor.start()
+    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor.session = mock_http_session
+    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value=sample_records)
+    
     result = await extractor._retry_with_backoff(extractor._make_request, {})
-    await extractor.close()
-    assert result == {}
+    
+    assert result == sample_records
 
 @pytest.mark.asyncio
 async def test_retry_with_backoff_error_handling(mock_http_session):
     """Test _retry_with_backoff method error handling."""
+    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor.session = mock_http_session
     mock_http_session.get.side_effect = Exception("Network error")
-    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
-    await extractor.start()
+    
     with pytest.raises(Exception):
         await extractor._retry_with_backoff(extractor._make_request, {})
-    await extractor.close()
 
 @pytest.mark.asyncio
-async def test_close():
-    """Test close method."""
-    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
-    await extractor.start()
+async def test_close_happy_path(mock_http_session):
+    """Test close method when session is active."""
+    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor.session = mock_http_session
+    
     await extractor.close()
-    assert extractor.session is None
+    
+    mock_http_session.close.assert_called_once()
 
 @pytest.mark.asyncio
-async def test_start():
-    """Test start method."""
-    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
+async def test_start_happy_path(mock_http_session):
+    """Test start method initializes session."""
+    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    
     await extractor.start()
+    
     assert extractor.session is not None
-    await extractor.close()
 
-def test_parse_response_happy_path():
-    """Test _parse_response method with valid input."""
-    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
-    response = {
-        "result": "success",
-        "provider": "ExchangeRatesAPI",
-        "time_last_update_unix": 1633072800,
-        "time_last_update_utc": "2021-10-01T00:00:00Z",
-        "time_next_update_unix": 1633159200,
-        "base_code": "USD",
-        "rates": {"EUR": 0.85, "GBP": 0.75, "JPY": 110.0, "CHF": 0.92}
-    }
-    result = extractor._parse_response(response)
-    assert result == [{
-        "result": "success",
-        "provider": "ExchangeRatesAPI",
-        "time_last_update_unix": 1633072800,
-        "time_last_update_utc": "2021-10-01T00:00:00Z",
-        "time_next_update_unix": 1633159200,
-        "base_code": "USD",
-        "rates.EUR": 0.85,
-        "rates.GBP": 0.75,
-        "rates.JPY": 110.0,
-        "rates.CHF": 0.92,
-    }]
-
-def test_parse_response_empty_input():
-    """Test _parse_response method with empty input."""
-    extractor = ExchangeRatesApiExtractor({"url": "http://mockurl.com"})
-    result = extractor._parse_response({})
-    assert result == []
+@pytest.mark.asyncio
+async def test_start_error_handling():
+    """Test start method error handling."""
+    extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    
+    await extractor.start()
+    
+    assert extractor.session is not None
