@@ -40,21 +40,21 @@ def sample_records():
             "capital_city": "Ottawa"
         },
         {
-            "country_code": "IND",
-            "country_name": "India",
+            "country_code": "GBR",
+            "country_name": "United Kingdom",
             "year": "2021",
             "gdp_usd": "3 trillion",
             "gdp_billions": "3000",
-            "population": "1.366 billion",
-            "gdp_per_capita": "2200",
-            "gdp_growth_yoy": "9.5%",
-            "population_growth_yoy": "1.0%",
-            "economic_size_category": "Emerging",
-            "population_category": "Medium",
-            "development_indicator": "Developing",
-            "region": "Asia",
-            "subregion": "South Asia",
-            "capital_city": "New Delhi"
+            "population": "67 million",
+            "gdp_per_capita": "45000",
+            "gdp_growth_yoy": "7.5%",
+            "population_growth_yoy": "0.5%",
+            "economic_size_category": "Large",
+            "population_category": "High",
+            "development_indicator": "Developed",
+            "region": "Europe",
+            "subregion": "Northern Europe",
+            "capital_city": "London"
         }
     ]
 
@@ -68,7 +68,7 @@ def invalid_records():
     """Provides a list of records with missing/null required fields."""
     return [
         {"country_code": None, "country_name": "Invalid Country"},
-        {"country_code": "XYZ", "country_name": None, "year": "2021"},
+        {"country_code": "XYZ", "country_name": "Invalid Country", "year": None},
         {}
     ]
 
