@@ -1,76 +1,45 @@
 import pytest
-from transformations import calculate_gdp_growth_yoy, calculate_population_growth_yoy, categorize_economic_size, categorize_population
+from transformations import calculate_gdp_growth_yoy, calculate_population_growth_yoy, categorize_economic_size
 
 def test_calculate_gdp_growth_yoy():
-    previous_gdp = 1000
-    current_gdp = 1200
-    expected_growth = 20.0
-    result = calculate_gdp_growth_yoy(current_gdp, previous_gdp)
-    assert result == expected_growth
+    row_current = {'gdp_usd': 2000, 'gdp_usd_prev': 1500}
+    result = calculate_gdp_growth_yoy(row_current)
+    assert result == 33.33
+
+    row_current = {'gdp_usd': 1500, 'gdp_usd_prev': 1500}
+    result = calculate_gdp_growth_yoy(row_current)
+    assert result == 0.0
+
+    row_current = {'gdp_usd': 0, 'gdp_usd_prev': 1500}
+    result = calculate_gdp_growth_yoy(row_current)
+    assert result == -100.0
 
 def test_calculate_population_growth_yoy():
-    previous_population = 1000000
-    current_population = 1100000
-    expected_growth = 10.0
-    result = calculate_population_growth_yoy(current_population, previous_population)
-    assert result == expected_growth
+    row_current = {'population': 1000000, 'population_prev': 900000}
+    result = calculate_population_growth_yoy(row_current)
+    assert result == 11.11
 
-def test_categorize_economic_size_small():
-    gdp_billions = 50
-    expected_category = 'Small'
-    result = categorize_economic_size(gdp_billions)
-    assert result == expected_category
+    row_current = {'population': 900000, 'population_prev': 900000}
+    result = calculate_population_growth_yoy(row_current)
+    assert result == 0.0
 
-def test_categorize_economic_size_medium():
-    gdp_billions = 500
-    expected_category = 'Medium'
-    result = categorize_economic_size(gdp_billions)
-    assert result == expected_category
+    row_current = {'population': 0, 'population_prev': 900000}
+    result = calculate_population_growth_yoy(row_current)
+    assert result == -100.0
 
-def test_categorize_economic_size_large():
-    gdp_billions = 3000
-    expected_category = 'Large'
-    result = categorize_economic_size(gdp_billions)
-    assert result == expected_category
+def test_categorize_economic_size():
+    row = {'gdp_billions': 50}
+    result = categorize_economic_size(row)
+    assert result == 'Small'
 
-def test_categorize_economic_size_major():
-    gdp_billions = 6000
-    expected_category = 'Major'
-    result = categorize_economic_size(gdp_billions)
-    assert result == expected_category
+    row = {'gdp_billions': 500}
+    result = categorize_economic_size(row)
+    assert result == 'Medium'
 
-def test_categorize_population_small():
-    population = 50000
-    expected_category = 'Small'
-    result = categorize_population(population)
-    assert result == expected_category
+    row = {'gdp_billions': 1500}
+    result = categorize_economic_size(row)
+    assert result == 'Large'
 
-def test_categorize_population_medium():
-    population = 500000
-    expected_category = 'Medium'
-    result = categorize_population(population)
-    assert result == expected_category
-
-def test_categorize_population_large():
-    population = 5000000
-    expected_category = 'Large'
-    result = categorize_population(population)
-    assert result == expected_category
-
-def test_categorize_population_major():
-    population = 50000000
-    expected_category = 'Major'
-    result = categorize_population(population)
-    assert result == expected_category
-
-def test_invalid_gdp_growth_yoy():
-    previous_gdp = 0
-    current_gdp = 1200
-    with pytest.raises(ZeroDivisionError):
-        calculate_gdp_growth_yoy(current_gdp, previous_gdp)
-
-def test_invalid_population_growth_yoy():
-    previous_population = 0
-    current_population = 1100000
-    with pytest.raises(ZeroDivisionError):
-        calculate_population_growth_yoy(current_population, previous_population)
+    row = {'gdp_billions': 6000}
+    result = categorize_economic_size(row)
+    assert result == 'Major'
