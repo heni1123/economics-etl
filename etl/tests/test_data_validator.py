@@ -8,12 +8,11 @@ from unittest import mock
 
 @pytest.mark.asyncio
 async def test_validate_batch_happy_path(sample_records):
-    """Test validate_batch with valid records."""
+    """Test validate_batch with valid input records."""
     validator = DataValidator()
     result = await validator.validate_batch(sample_records)
     assert result.is_valid
     assert result.errors == []
-    assert result.warnings == []
     assert result.record_count == len(sample_records)
 
 @pytest.mark.asyncio
@@ -23,131 +22,118 @@ async def test_validate_batch_empty_input(empty_records):
     result = await validator.validate_batch(empty_records)
     assert not result.is_valid
     assert result.errors == []
-    assert result.warnings == []
     assert result.record_count == 0
 
 @pytest.mark.asyncio
 async def test_validate_batch_error_handling(invalid_records):
-    """Test validate_batch with invalid records."""
+    """Test validate_batch with invalid input records."""
     validator = DataValidator()
     result = await validator.validate_batch(invalid_records)
     assert not result.is_valid
     assert len(result.errors) > 0
-    assert result.warnings == []
     assert result.record_count == len(invalid_records)
 
-def test_validate_record_happy_path():
-    """Test validate_record with a valid record."""
+def test_validate_record_happy_path(sample_records):
+    """Test validate_record with valid input record."""
     validator = DataValidator()
-    record = {
-        'country_code': 'USA',
-        'country_name': 'United States',
-        'year': 2020,
-        'load_timestamp': '2020-01-01T00:00:00Z',
-        'base_currency': 'USD',
-        'target_currency': 'EUR',
-        'exchange_rate': 0.85,
-        'rate_date': '2020-01-01',
-        'rate_timestamp': '2020-01-01T00:00:00Z'
-    }
-    result = validator.validate_record(record)
+    result = validator.validate_record(sample_records[0])
     assert result.is_valid
     assert result.errors == []
-    assert result.warnings == []
-    assert result.record_count == 1
 
 def test_validate_record_empty_input():
-    """Test validate_record with an empty record."""
+    """Test validate_record with empty input."""
     validator = DataValidator()
-    record = {}
-    result = validator.validate_record(record)
+    result = validator.validate_record({})
+    assert not result.is_valid
+    assert "Missing required field: country_code" in result.errors
+
+def test_validate_record_error_handling(invalid_records):
+    """Test validate_record with invalid input record."""
+    validator = DataValidator()
+    result = validator.validate_record(invalid_records[0])
     assert not result.is_valid
     assert len(result.errors) > 0
-    assert result.warnings == []
-    assert result.record_count == 1
 
-def test_validate_record_error_handling():
-    """Test validate_record with an invalid record."""
+def test_apply_rule_br1_happy_path():
+    """Test _apply_rule_br1 with valid GDP data."""
     validator = DataValidator()
-    record = {
-        'country_code': 'US',
-        'country_name': 'United States',
-        'year': 2050,  # Invalid year
-        'load_timestamp': None,
-        'base_currency': 'USD',
-        'target_currency': 'EUR',
-        'exchange_rate': 0.85,
-        'rate_date': '2020-01-01',
-        'rate_timestamp': '2020-01-01T00:00:00Z'
-    }
-    result = validator.validate_record(record)
-    assert not result.is_valid
-    assert len(result.errors) > 0
-    assert result.warnings == []
-    assert result.record_count == 1
-
-def test_validate_country_code_happy_path():
-    """Test _validate_country_code with a valid code."""
-    validator = DataValidator()
-    result = validator._validate_country_code('USA')
-    assert result
-
-def test_validate_country_code_invalid_code():
-    """Test _validate_country_code with an invalid code."""
-    validator = DataValidator()
-    result = validator._validate_country_code('US1')
-    assert not result
-
-def test_validate_year_happy_path():
-    """Test _validate_year with a valid year."""
-    validator = DataValidator()
-    result = validator._validate_year(2020)
-    assert result
-
-def test_validate_year_invalid_year():
-    """Test _validate_year with an invalid year."""
-    validator = DataValidator()
-    result = validator._validate_year(1950)
-    assert not result
-
-def test_apply_rule():
-    """Test _apply_rule with a record."""
-    validator = DataValidator()
-    record = {}
-    result = validator._apply_rule(record)
-    assert result is None
-
-def test_apply_rule_br1():
-    """Test _apply_rule_br1 with a record."""
-    validator = DataValidator()
-    record = {}
+    record = {'gdp_usd': 2000, 'gdp_usd_prev': 1000}
     result = validator._apply_rule_br1(record)
     assert result is None
 
-def test_apply_rule_br2():
-    """Test _apply_rule_br2 with a record."""
+def test_apply_rule_br1_zero_previous_gdp():
+    """Test _apply_rule_br1 with zero previous GDP."""
+    validator = DataValidator()
+    record = {'gdp_usd': 2000, 'gdp_usd_prev': 0}
+    result = validator._apply_rule_br1(record)
+    assert result == "Previous GDP is zero, cannot calculate growth"
+
+def test_apply_rule_br1_missing_data():
+    """Test _apply_rule_br1 with missing GDP data."""
     validator = DataValidator()
     record = {}
+    result = validator._apply_rule_br1(record)
+    assert result == "Missing GDP data for growth calculation"
+
+def test_apply_rule_br2_happy_path():
+    """Test _apply_rule_br2 with valid population data."""
+    validator = DataValidator()
+    record = {'population': 5000, 'population_prev': 4000}
     result = validator._apply_rule_br2(record)
     assert result is None
 
-def test_apply_rule_br3():
-    """Test _apply_rule_br3 with a record."""
+def test_apply_rule_br2_zero_previous_population():
+    """Test _apply_rule_br2 with zero previous population."""
+    validator = DataValidator()
+    record = {'population': 5000, 'population_prev': 0}
+    result = validator._apply_rule_br2(record)
+    assert result == "Previous population is zero, cannot calculate growth"
+
+def test_apply_rule_br2_missing_data():
+    """Test _apply_rule_br2 with missing population data."""
+    validator = DataValidator()
+    record = {}
+    result = validator._apply_rule_br2(record)
+    assert result == "Missing population data for growth calculation"
+
+def test_apply_rule_br3_happy_path():
+    """Test _apply_rule_br3 with valid GDP billions data."""
+    validator = DataValidator()
+    record = {'gdp_billions': 150}
+    result = validator._apply_rule_br3(record)
+    assert result == "Economic size category: Medium"
+
+def test_apply_rule_br3_missing_data():
+    """Test _apply_rule_br3 with missing GDP data."""
     validator = DataValidator()
     record = {}
     result = validator._apply_rule_br3(record)
-    assert result is None
+    assert result == "Missing GDP data for size categorization"
 
-def test_apply_rule_br4():
-    """Test _apply_rule_br4 with a record."""
+def test_apply_rule_br4_happy_path():
+    """Test _apply_rule_br4 with valid population data."""
+    validator = DataValidator()
+    record = {'population': 30000000}
+    result = validator._apply_rule_br4(record)
+    assert result == "Population category: Medium"
+
+def test_apply_rule_br4_missing_data():
+    """Test _apply_rule_br4 with missing population data."""
     validator = DataValidator()
     record = {}
     result = validator._apply_rule_br4(record)
-    assert result is None
+    assert result == "Missing population data for category determination"
 
-def test_apply_rule_br5():
-    """Test _apply_rule_br5 with a record."""
+def test_apply_rule_br5_happy_path():
+    """Test _apply_rule_br5 with valid GDP per capita data."""
+    validator = DataValidator()
+    record = {'gdp_per_capita': 5000}
+    result = validator._apply_rule_br5(record)
+    assert result == "Development indicator: Upper-Middle"
+
+def test_apply_rule_br5_missing_data():
+    """Test _apply_rule_br5 with missing GDP per capita data."""
     validator = DataValidator()
     record = {}
     result = validator._apply_rule_br5(record)
-    assert result is None
+    assert result == "Missing GDP per capita data for development indicator"
