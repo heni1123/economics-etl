@@ -1,0 +1,94 @@
+{
+  "sources": [
+    {
+      "name": "worldbank_gdp",
+      "type": "rest_api",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/NY.GDP.MKTP.CD",
+      "method": "GET",
+      "params": {
+        "format": "json",
+        "per_page": "1000",
+        "date": "2020:2023"
+      },
+      "headers": {},
+      "auth_type": "none",
+      "auth_env_var": null,
+      "response_path": "",
+      "role": "primary",
+      "description": "GDP data from World Bank"
+    },
+    {
+      "name": "worldbank_population",
+      "type": "rest_api",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL",
+      "method": "GET",
+      "params": {
+        "format": "json",
+        "per_page": "1000",
+        "date": "2020:2023"
+      },
+      "headers": {},
+      "auth_type": "none",
+      "auth_env_var": null,
+      "response_path": "",
+      "role": "primary",
+      "description": "Population data from World Bank"
+    },
+    {
+      "name": "exchangerate_api",
+      "type": "rest_api",
+      "url": "https://open.er-api.com/v6/latest/USD",
+      "method": "GET",
+      "params": {},
+      "headers": {},
+      "auth_type": "none",
+      "auth_env_var": null,
+      "response_path": "",
+      "role": "primary",
+      "description": "Exchange rates data"
+    },
+    {
+      "name": "restcountries_info",
+      "type": "rest_api",
+      "url": "https://restcountries.com/v3.1/all",
+      "method": "GET",
+      "params": {},
+      "headers": {},
+      "auth_type": "none",
+      "auth_env_var": null,
+      "response_path": "",
+      "role": "enrichment",
+      "description": "Country information data"
+    }
+  ],
+  "target": {
+    "database": "postgresql",
+    "table": "public.fact_economic_indicators",
+    "credentials": {
+      "password": "${DB_PASSWORD}"
+    }
+  },
+  "pipeline_settings": {
+    "idempotency": true,
+    "log_table": "etl_pipeline_runs",
+    "error_handling": {
+      "retry_policy": {
+        "max_retries": 3,
+        "backoff_factor": 2,
+        "initial_delay": 1
+      }
+    }
+  },
+  "monitoring": {
+    "success_notifications": true,
+    "failure_notifications": true,
+    "metrics": {
+      "completion_rate": true,
+      "execution_time": true
+    }
+  },
+  "schedule": {
+    "frequency": "daily",
+    "time": "02:00 UTC"
+  }
+}
