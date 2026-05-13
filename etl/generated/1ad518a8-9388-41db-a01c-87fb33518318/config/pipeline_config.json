@@ -1,0 +1,94 @@
+{
+  "sources": [
+    {
+      "name": "worldbank_gdp",
+      "type": "rest_api",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/NY.GDP.MKTP.CD",
+      "method": "GET",
+      "params": {
+        "format": "json",
+        "per_page": "1000",
+        "date": "2020:2023"
+      },
+      "headers": {},
+      "auth_type": "none",
+      "auth_env_var": null,
+      "response_path": "",
+      "role": "primary",
+      "description": "GDP data from World Bank"
+    },
+    {
+      "name": "worldbank_population",
+      "type": "rest_api",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL",
+      "method": "GET",
+      "params": {
+        "format": "json",
+        "per_page": "1000",
+        "date": "2020:2023"
+      },
+      "headers": {},
+      "auth_type": "none",
+      "auth_env_var": null,
+      "response_path": "",
+      "role": "primary",
+      "description": "Population data from World Bank"
+    },
+    {
+      "name": "exchangerate_api",
+      "type": "rest_api",
+      "url": "https://open.er-api.com/v6/latest/USD",
+      "method": "GET",
+      "params": {},
+      "headers": {},
+      "auth_type": "none",
+      "auth_env_var": null,
+      "response_path": "",
+      "role": "cross_join",
+      "description": "Exchange rates data"
+    },
+    {
+      "name": "restcountries_info",
+      "type": "rest_api",
+      "url": "https://restcountries.com/v3.1/all",
+      "method": "GET",
+      "params": {},
+      "headers": {},
+      "auth_type": "none",
+      "auth_env_var": null,
+      "response_path": "",
+      "role": "e"
+    }
+  ],
+  "target": {
+    "database": "postgresql",
+    "table": "public.fact_economic_indicators",
+    "credentials": {
+      "password": "${DB_PASSWORD}"
+    }
+  },
+  "pipeline_settings": {
+    "refresh_frequency": "daily",
+    "idempotency": true,
+    "error_handling": {
+      "retry_policy": {
+        "max_retries": 3,
+        "backoff_factor": 2,
+        "initial_delay": 1
+      }
+    }
+  },
+  "monitoring": {
+    "logging": {
+      "level": "INFO",
+      "log_file": "/var/log/etl_pipeline.log"
+    },
+    "alerting": {
+      "enabled": true,
+      "alert_email": "alerts@example.com"
+    }
+  },
+  "schedule": {
+    "cron_expression": "0 0 * * *"
+  }
+}
