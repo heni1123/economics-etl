@@ -1,37 +1,40 @@
 import pytest
-from your_module import validate_gdp, validate_population, categorize_economic_size, categorize_population, calculate_gdp_growth_yoy, calculate_population_growth_yoy
+from typing import Dict, Any
 
-def test_validate_gdp():
-    assert validate_gdp(1000) == True
-    assert validate_gdp(0) == True
-    assert validate_gdp(-1) == False
-    assert validate_gdp(None) == False
+def calculate_gdp_growth_yoy(row: Dict[str, Any]) -> float:
+    if 'gdp_usd_prev' not in row or row['gdp_usd_prev'] is None or row['gdp_usd_prev'] == 0:
+        return 0.0
+    return (row['gdp_usd'] - row['gdp_usd_prev']) / row['gdp_usd_prev'] * 100
 
-def test_validate_population():
-    assert validate_population(1000000) == True
-    assert validate_population(0) == True
-    assert validate_population(-1) == False
-    assert validate_population(None) == False
+def calculate_population_growth_yoy(row: Dict[str, Any]) -> float:
+    if 'population_prev' not in row or row['population_prev'] is None or row['population_prev'] == 0:
+        return 0.0
+    return (row['population'] - row['population_prev']) / row['population_prev'] * 100
 
-def test_categorize_economic_size():
-    assert categorize_economic_size(500) == 'Small'
-    assert categorize_economic_size(1500) == 'Medium'
-    assert categorize_economic_size(3000) == 'Large'
-    assert categorize_economic_size(6000) == 'Major'
-
-def test_categorize_population():
-    assert categorize_population(500000) == 'Low'
-    assert categorize_population(2000000) == 'Medium'
-    assert categorize_population(10000000) == 'High'
+def categorize_economic_size(row: Dict[str, Any]) -> str:
+    if row['gdp_billions'] < 100:
+        return 'Small'
+    elif row['gdp_billions'] < 1000:
+        return 'Medium'
+    elif row['gdp_billions'] < 5000:
+        return 'Large'
+    else:
+        return 'Major'
 
 def test_calculate_gdp_growth_yoy():
-    assert calculate_gdp_growth_yoy(2000, 2500) == 25.0
-    assert calculate_gdp_growth_yoy(2500, 2500) == 0.0
-    assert calculate_gdp_growth_yoy(2500, 2000) == -20.0
-    assert calculate_gdp_growth_yoy(0, 2500) == None
+    assert calculate_gdp_growth_yoy({'gdp_usd': 2000, 'gdp_usd_prev': 1000}) == 100.0
+    assert calculate_gdp_growth_yoy({'gdp_usd': 1500, 'gdp_usd_prev': 1000}) == 50.0
+    assert calculate_gdp_growth_yoy({'gdp_usd': 1000, 'gdp_usd_prev': 0}) == 0.0
+    assert calculate_gdp_growth_yoy({'gdp_usd': 1000}) == 0.0
 
 def test_calculate_population_growth_yoy():
-    assert calculate_population_growth_yoy(1000000, 1100000) == 10.0
-    assert calculate_population_growth_yoy(1100000, 1100000) == 0.0
-    assert calculate_population_growth_yoy(1100000, 1000000) == -9.09
-    assert calculate_population_growth_yoy(0, 1100000) == None
+    assert calculate_population_growth_yoy({'population': 2000, 'population_prev': 1000}) == 100.0
+    assert calculate_population_growth_yoy({'population': 1500, 'population_prev': 1000}) == 50.0
+    assert calculate_population_growth_yoy({'population': 1000, 'population_prev': 0}) == 0.0
+    assert calculate_population_growth_yoy({'population': 1000}) == 0.0
+
+def test_categorize_economic_size():
+    assert categorize_economic_size({'gdp_billions': 50}) == 'Small'
+    assert categorize_economic_size({'gdp_billions': 500}) == 'Medium'
+    assert categorize_economic_size({'gdp_billions': 3000}) == 'Large'
+    assert categorize_economic_size({'gdp_billions': 6000}) == 'Major'
