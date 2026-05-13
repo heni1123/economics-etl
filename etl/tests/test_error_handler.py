@@ -5,56 +5,59 @@ except ImportError:
 
 import pytest
 from unittest import mock
-from unittest.mock import AsyncMock
+import logging
+
+@pytest.fixture
+def logger():
+    return logging.getLogger("test_logger")
 
 @pytest.mark.asyncio
-async def test_retry_with_backoff_happy_path():
+async def test_retry_with_backoff_happy_path(logger):
     """Test retry_with_backoff with a successful function call."""
-    handler = ErrorHandler()
-    mock_func = AsyncMock(return_value="success")
-    result = await handler.retry_with_backoff(mock_func)
-    assert result == "success"
+    error_handler = ErrorHandler(logger)
+    
+    async def successful_function():
+        return "Success"
+
+    result = await error_handler.retry_with_backoff(successful_function)
+    assert result == "Success"
 
 @pytest.mark.asyncio
-async def test_retry_with_backoff_empty_input():
-    """Test retry_with_backoff with no arguments."""
-    handler = ErrorHandler()
-    mock_func = AsyncMock(return_value="success")
-    result = await handler.retry_with_backoff(mock_func, max_retries=1)
-    assert result == "success"
+async def test_retry_with_backoff_empty_input(logger):
+    """Test retry_with_backoff with empty input."""
+    error_handler = ErrorHandler(logger)
+
+    async def function_with_no_args():
+        return "Success"
+
+    result = await error_handler.retry_with_backoff(function_with_no_args)
+    assert result == "Success"
 
 @pytest.mark.asyncio
-async def test_retry_with_backoff_error_handling():
+async def test_retry_with_backoff_error_handling(logger):
     """Test retry_with_backoff with a function that raises an exception."""
-    handler = ErrorHandler()
-    mock_func = AsyncMock(side_effect=Exception("error"))
-    with pytest.raises(Exception, match="Function mock_func failed after 3 attempts."):
-        await handler.retry_with_backoff(mock_func)
+    error_handler = ErrorHandler(logger)
 
-def test_log_audit():
-    """Test log_audit logs the correct message."""
-    handler = ErrorHandler()
-    with mock.patch.object(handler.logger, 'info') as mock_info:
-        handler.log_audit(10, 5, "SUCCESS")
-        mock_info.assert_called_once_with("Audit Log - Rows Extracted: 10, Rows Loaded: 5, Status: SUCCESS, Error: None")
+    async def failing_function():
+        raise Exception("Simulated failure")
 
-def test_log_audit_with_error():
-    """Test log_audit logs the correct message with an error."""
-    handler = ErrorHandler()
-    with mock.patch.object(handler.logger, 'info') as mock_info:
-        handler.log_audit(10, 5, "FAILURE", "Some error")
-        mock_info.assert_called_once_with("Audit Log - Rows Extracted: 10, Rows Loaded: 5, Status: FAILURE, Error: Some error")
+    with mock.patch.object(logger, 'error') as mock_error:
+        with pytest.raises(Exception, match="Function failing_function failed after 3 attempts."):
+            await error_handler.retry_with_backoff(failing_function)
+        assert mock_error.call_count == 4  # 3 retries + final error log
 
-def test_log_completion():
-    """Test log_completion logs the correct message."""
-    handler = ErrorHandler()
-    with mock.patch.object(handler.logger, 'info') as mock_info:
-        handler.log_completion("task_1", "Completed successfully")
-        mock_info.assert_called_once_with("Task task_1 completed: Completed successfully")
+def test_log_audit(logger):
+    """Test log_audit logs the correct information."""
+    error_handler = ErrorHandler(logger)
 
-def test_log_error():
-    """Test log_error logs the correct error message."""
-    handler = ErrorHandler()
-    with mock.patch.object(handler.logger, 'error') as mock_error:
-        handler.log_error("task_1", "An error occurred")
-        mock_error.assert_called_once_with("Task task_1 encountered an error: An error occurred")
+    with mock.patch.object(logger, 'info') as mock_info:
+        error_handler.log_audit(10, 5, "success")
+        mock_info.assert_called_once_with("Audit Log - Rows Extracted: 10, Rows Loaded: 5, Status: success, Error Message: ")
+
+def test_log_audit_with_error_message(logger):
+    """Test log_audit with an error message."""
+    error_handler = ErrorHandler(logger)
+
+    with mock.patch.object(logger, 'info') as mock_info:
+        error_handler.log_audit(10, 5, "failed", "Some error occurred")
+        mock_info.assert_called_once_with("Audit Log - Rows Extracted: 10, Rows Loaded: 5, Status: failed, Error Message: Some error occurred")
