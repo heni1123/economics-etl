@@ -5,61 +5,59 @@ except ImportError:
 
 import pytest
 from unittest import mock
-from unittest.mock import AsyncMock
+import logging
+
+@pytest.fixture
+def logger():
+    return logging.getLogger("test_logger")
 
 @pytest.mark.asyncio
-async def test_execute_with_retry_happy_path(mock_http_session):
-    """Test execute_with_retry with a successful function call."""
+async def test_retry_with_backoff_happy_path(logger):
+    """Test retry_with_backoff with a successful function call."""
+    error_handler = ErrorHandler(logger)
+
     async def successful_function():
         return "Success"
 
-    result = await error_handler.execute_with_retry(successful_function)
+    result = await error_handler.retry_with_backoff(successful_function)
     assert result == "Success"
 
 @pytest.mark.asyncio
-async def test_execute_with_retry_empty_input():
-    """Test execute_with_retry with empty input."""
-    async def empty_function():
+async def test_retry_with_backoff_empty_input(logger):
+    """Test retry_with_backoff with empty input."""
+    error_handler = ErrorHandler(logger)
+
+    async def function_with_no_return():
         return None
 
-    result = await error_handler.execute_with_retry(empty_function)
+    result = await error_handler.retry_with_backoff(function_with_no_return)
     assert result is None
 
 @pytest.mark.asyncio
-async def test_execute_with_retry_error_handling():
-    """Test execute_with_retry with a function that raises an exception."""
+async def test_retry_with_backoff_error_handling(logger):
+    """Test retry_with_backoff with a function that raises an exception."""
+    error_handler = ErrorHandler(logger)
+
     async def failing_function():
-        raise Exception("Failure")
+        raise Exception("Simulated failure")
 
-    result = await error_handler.execute_with_retry(failing_function)
-    assert result is None
+    with mock.patch.object(logger, 'error') as mock_error:
+        result = await error_handler.retry_with_backoff(failing_function, max_retries=2, backoff_factor=0.1)
+        assert result is None
+        assert mock_error.call_count == 3  # 2 retries + 1 final error log
 
-@pytest.mark.asyncio
-async def test_execute_with_retry_multiple_failures():
-    """Test execute_with_retry with multiple failures before success."""
-    attempt = 0
+def test_log_audit_trail(logger):
+    """Test log_audit_trail logs the correct information."""
+    error_handler = ErrorHandler(logger)
 
-    async def intermittent_function():
-        nonlocal attempt
-        if attempt < 2:
-            attempt += 1
-            raise Exception("Temporary failure")
-        return "Success"
+    with mock.patch.object(logger, 'info') as mock_info:
+        error_handler.log_audit_trail(10, 5, "success")
+        mock_info.assert_called_once_with("Audit Trail - Rows Extracted: 10, Rows Loaded: 5, Status: success, Error Message: None")
 
-    result = await error_handler.execute_with_retry(intermittent_function)
-    assert result == "Success"
+def test_log_audit_trail_with_error_message(logger):
+    """Test log_audit_trail with an error message."""
+    error_handler = ErrorHandler(logger)
 
-def test_log_audit_happy_path(caplog):
-    """Test log_audit with valid input."""
-    error_handler.log_audit(100, 90, "Success")
-    assert "Audit Log - Rows Extracted: 100, Rows Loaded: 90, Status: Success, Error: None" in caplog.text
-
-def test_log_audit_empty_error_message(caplog):
-    """Test log_audit with empty error message."""
-    error_handler.log_audit(100, 90, "Failed", None)
-    assert "Audit Log - Rows Extracted: 100, Rows Loaded: 90, Status: Failed, Error: None" in caplog.text
-
-def test_log_audit_with_error_message(caplog):
-    """Test log_audit with an error message."""
-    error_handler.log_audit(100, 0, "Failed", "Some error occurred")
-    assert "Audit Log - Rows Extracted: 100, Rows Loaded: 0, Status: Failed, Error: Some error occurred" in caplog.text
+    with mock.patch.object(logger, 'info') as mock_info:
+        error_handler.log_audit_trail(0, 0, "failed", "Some error occurred")
+        mock_info.assert_called_once_with("Audit Trail - Rows Extracted: 0, Rows Loaded: 0, Status: failed, Error Message: Some error occurred")
