@@ -56,11 +56,11 @@ async def test_fetch_page_empty_input(mock_http_session):
     """Test _fetch_page method with empty parameters."""
     extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
     extractor.session = mock_http_session
-    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
+    mock_http_session.get.return_value.__aenter__.return_value.json = AsyncMock(return_value={})
     
     result = await extractor._fetch_page({})
     
-    assert result == []
+    assert result == {}
 
 @pytest.mark.asyncio
 async def test_fetch_page_error_handling(mock_http_session):
@@ -100,7 +100,7 @@ async def test_handle_rate_limit(mock_http_session):
     extractor.session = mock_http_session
     
     with mock.patch('asyncio.sleep', return_value=None) as mock_sleep:
-        await extractor._handle_rate_limit(mock.Mock())
+        await extractor._handle_rate_limit(mock.Mock(status=429))
         mock_sleep.assert_called_once_with(60)
 
 @pytest.mark.asyncio
@@ -138,16 +138,18 @@ async def test_close_happy_path(mock_http_session):
 async def test_start_happy_path(mock_http_session):
     """Test start method initializes session."""
     extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor.session = None
     
     await extractor.start()
     
     assert extractor.session is not None
 
 @pytest.mark.asyncio
-async def test_start_error_handling():
-    """Test start method error handling."""
+async def test_start_already_started(mock_http_session):
+    """Test start method when session is already initialized."""
     extractor = ExchangeRatesApiExtractor({"url": "http://fakeurl.com"})
+    extractor.session = mock_http_session
     
     await extractor.start()
     
-    assert extractor.session is not None
+    assert extractor.session is mock_http_session
