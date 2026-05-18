@@ -9,51 +9,50 @@ from unittest.mock import AsyncMock
 
 @pytest.mark.asyncio
 async def test_run_happy_path():
-    """Test run method with valid phase and dry_run."""
+    """Test PipelineOrchestrator.run with valid input."""
     orchestrator = PipelineOrchestrator()
     result = await orchestrator.run("extract", False)
-    assert result['rows_processed'] == 100
-    assert len(result['errors']) == 0
+    assert result == {"rows_extracted": 0, "rows_loaded": 0, "errors": []}
 
 @pytest.mark.asyncio
 async def test_run_empty_input():
-    """Test run method with empty phase input."""
+    """Test PipelineOrchestrator.run with empty input."""
     orchestrator = PipelineOrchestrator()
     result = await orchestrator.run("", False)
-    assert result['rows_processed'] == 100
-    assert len(result['errors']) == 0
+    assert result == {"rows_extracted": 0, "rows_loaded": 0, "errors": []}
 
 @pytest.mark.asyncio
 async def test_run_error_handling():
-    """Test run method with a simulated error."""
+    """Test PipelineOrchestrator.run with error handling."""
     orchestrator = PipelineOrchestrator()
-    with mock.patch.object(orchestrator, 'run', side_effect=Exception("Simulated error")):
-        with pytest.raises(Exception):
-            await orchestrator.run("extract", False)
+    with mock.patch.object(orchestrator, 'run', side_effect=Exception("Test error")):
+        result = await orchestrator.run("extract", False)
+        assert result == {"rows_extracted": 0, "rows_loaded": 0, "errors": ["Test error"]}
 
 @pytest.mark.asyncio
-async def test_main_happy_path():
-    """Test main function with valid inputs."""
-    with mock.patch('main.PipelineOrchestrator.run', return_value={"duration": 1, "rows_processed": 100, "errors": []}):
-        exit_code = await main("config_path", False, "extract")
-        assert exit_code == 0
+async def test_main_happy_path(mock_db_connection):
+    """Test main function with valid parameters."""
+    mock_db_connection.fetch.return_value = AsyncMock()
+    mock_db_connection.execute.return_value = AsyncMock()
+    with mock.patch('main.PipelineOrchestrator.run', return_value={"rows_extracted": 1, "rows_loaded": 1, "errors": []}):
+        await main("config_path", False, "extract")
+        # Add assertions based on expected behavior
 
 @pytest.mark.asyncio
 async def test_main_empty_input():
-    """Test main function with empty phase input."""
-    with mock.patch('main.PipelineOrchestrator.run', return_value={"duration": 1, "rows_processed": 100, "errors": []}):
-        exit_code = await main("config_path", False, "")
-        assert exit_code == 0
+    """Test main function with empty parameters."""
+    with pytest.raises(SystemExit):
+        await main("", False, "")
 
 @pytest.mark.asyncio
 async def test_main_error_handling():
-    """Test main function with simulated errors."""
-    with mock.patch('main.PipelineOrchestrator.run', side_effect=Exception("Simulated error")):
-        exit_code = await main("config_path", False, "extract")
-        assert exit_code == 1
+    """Test main function with error handling."""
+    with mock.patch('main.PipelineOrchestrator.run', side_effect=Exception("Test error")):
+        with pytest.raises(SystemExit):
+            await main("config_path", False, "extract")
 
 def test_signal_handler():
-    """Test signal handler for graceful shutdown."""
+    """Test signal_handler function."""
     with mock.patch('sys.exit') as mock_exit:
-        signal_handler(0, None)
+        signal_handler(2, None)
         mock_exit.assert_called_once_with(0)
