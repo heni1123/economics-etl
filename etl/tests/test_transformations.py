@@ -4,34 +4,34 @@ from transformations import calculate_gdp_growth_yoy, calculate_population_growt
 def test_calculate_gdp_growth_yoy():
     row = {
         'gdp_usd': 20000,
-        'gdp_usd_prev': 18000
+        'gdp_usd_previous': 18000
     }
     result = calculate_gdp_growth_yoy(row)
     assert result == 11.1111
 
-def test_calculate_gdp_growth_yoy_no_previous():
+def test_calculate_gdp_growth_yoy_zero_previous():
     row = {
         'gdp_usd': 20000,
-        'gdp_usd_prev': 0
+        'gdp_usd_previous': 0
     }
     result = calculate_gdp_growth_yoy(row)
-    assert result == 0
+    assert result is None
 
 def test_calculate_population_growth_yoy():
     row = {
         'population': 1000000,
-        'population_prev': 950000
+        'population_previous': 950000
     }
     result = calculate_population_growth_yoy(row)
     assert result == 5.2632
 
-def test_calculate_population_growth_yoy_no_previous():
+def test_calculate_population_growth_yoy_zero_previous():
     row = {
         'population': 1000000,
-        'population_prev': 0
+        'population_previous': 0
     }
     result = calculate_population_growth_yoy(row)
-    assert result == 0
+    assert result is None
 
 def test_categorize_economic_size_small():
     row = {
@@ -74,3 +74,10 @@ def test_categorize_economic_size_edge_case_large():
     }
     result = categorize_economic_size(row)
     assert result == 'Large'
+
+def test_categorize_economic_size_edge_case_major():
+    row = {
+        'gdp_billions': 5000.01
+    }
+    result = categorize_economic_size(row)
+    assert result == 'Major'
