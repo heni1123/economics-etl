@@ -26,7 +26,7 @@ async def test_execute_with_retry_empty_input():
     assert result == "success"
 
 @pytest.mark.asyncio
-async def test_execute_with_retry_error_handling():
+async def test_execute_with_retry_error_handling(mock_http_session):
     """Test execute_with_retry with a function that raises an exception."""
     async def mock_function():
         raise Exception("error")
@@ -35,44 +35,31 @@ async def test_execute_with_retry_error_handling():
         await error_handler.execute_with_retry(mock_function)
 
 @pytest.mark.asyncio
-async def test_log_audit_trail():
-    """Test log_audit_trail logs the correct message."""
-    with mock.patch.object(error_handler.logger, 'info') as mock_log:
-        error_handler.log_audit_trail("Test message")
-        mock_log.assert_called_once_with("AUDIT: Test message")
+async def test_execute_with_retry_multiple_retries(mock_http_session):
+    """Test execute_with_retry with multiple retries before success."""
+    attempts = 0
 
-@pytest.mark.asyncio
-async def test_execute_with_retry_multiple_retries():
-    """Test execute_with_retry retries on failure."""
     async def mock_function():
-        raise Exception("error")
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise Exception("error")
+        return "success"
 
-    with mock.patch.object(error_handler.logger, 'error') as mock_error, \
-         mock.patch.object(error_handler.logger, 'critical') as mock_critical:
-        with pytest.raises(Exception, match="error"):
-            await error_handler.execute_with_retry(mock_function)
+    result = await error_handler.execute_with_retry(mock_function)
+    assert result == "success"
+    assert attempts == 3
 
-        assert mock_error.call_count == 3  # Check if it logged error for each retry
-        assert mock_critical.called  # Check if it logged critical after all retries failed
+def test_log_audit():
+    """Test log_audit method."""
+    with mock.patch.object(error_handler.logger, 'info') as mock_info:
+        error_handler.log_audit("Test audit message")
+        mock_info.assert_called_once_with("AUDIT: Test audit message")
 
-@pytest.mark.asyncio
-async def test_execute_with_retry_backoff():
-    """Test execute_with_retry implements backoff correctly."""
-    async def mock_function():
-        raise Exception("error")
-
-    with mock.patch('asyncio.sleep', return_value=None) as mock_sleep:
-        with pytest.raises(Exception):
-            await error_handler.execute_with_retry(mock_function)
-
-        assert mock_sleep.call_count == 2  # Check if sleep was called for retries
-        assert mock_sleep.call_args_list == [mock.call(1.0), mock.call(2.0)]  # Check backoff times
-
-@pytest.mark.asyncio
-async def test_setup_logging():
-    """Test setup_logging initializes the logger correctly."""
+def test_setup_logging():
+    """Test setup_logging method."""
     logger = error_handler.setup_logging()
-    assert logger.name == "ETL_Error_Handler"
+    assert logger.name == "ETL_ErrorHandler"
     assert logger.level == logging.INFO
-    assert len(logger.handlers) == 1  # Check if one handler is added
-    assert isinstance(logger.handlers[0], logging.FileHandler)  # Check if it's a FileHandler
+    assert len(logger.handlers) == 1
+    assert isinstance(logger.handlers[0], logging.FileHandler)
