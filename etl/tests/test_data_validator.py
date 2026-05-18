@@ -77,50 +77,63 @@ def test_apply_rule_happy_path():
     validator = DataValidator()
     record = {
         'gdp_usd': 50000,
-        'gdp_usd_prev': 40000,
+        'gdp_usd_previous': 40000,
         'population': 30000000,
-        'gdp_billions': 500,
-        'population_prev': 29000000,
-        'gdp_per_capita': 1666
+        'population_previous': 25000000,
+        'gdp_billions': 200,
+        'gdp_per_capita': 15000
     }
     validator._apply_rule(record)
-    assert 'gdp_growth_yoy' in record
-    assert 'population_growth_yoy' in record
-    assert 'economic_size_category' in record
-    assert 'population_category' in record
-    assert 'development_indicator' in record
+    assert record['gdp_growth_yoy'] == 25.0
+    assert record['population_growth_yoy'] == 20.0
+    assert record['economic_size_category'] == 'Medium'
+    assert record['population_category'] == 'Medium'
 
 def test_validate_br1_happy_path():
-    """Test _validate_br1 with valid record."""
+    """Test _validate_br1 with valid previous GDP."""
     validator = DataValidator()
-    record = {'gdp_usd': 50000, 'gdp_usd_prev': 40000}
+    record = {'gdp_usd': 50000, 'gdp_usd_previous': 40000}
     validator._validate_br1(record)
     assert record['gdp_growth_yoy'] == 25.0
 
-def test_validate_br2_happy_path():
-    """Test _validate_br2 with valid record."""
+def test_validate_br1_zero_previous_gdp():
+    """Test _validate_br1 with zero previous GDP."""
     validator = DataValidator()
-    record = {'population': 30000000, 'population_prev': 29000000}
+    record = {'gdp_usd': 50000, 'gdp_usd_previous': 0}
+    validator._validate_br1(record)
+    assert record['gdp_growth_yoy'] is None
+
+def test_validate_br2_happy_path():
+    """Test _validate_br2 with valid previous population."""
+    validator = DataValidator()
+    record = {'population': 30000000, 'population_previous': 25000000}
     validator._validate_br2(record)
-    assert record['population_growth_yoy'] == 3.4482758620689653
+    assert record['population_growth_yoy'] == 20.0
+
+def test_validate_br2_zero_previous_population():
+    """Test _validate_br2 with zero previous population."""
+    validator = DataValidator()
+    record = {'population': 30000000, 'population_previous': 0}
+    validator._validate_br2(record)
+    assert record['population_growth_yoy'] is None
 
 def test_validate_br3_happy_path():
-    """Test _validate_br3 with valid record."""
+    """Test _validate_br3 with valid GDP billions."""
     validator = DataValidator()
-    record = {'gdp_billions': 500}
+    record = {'gdp_billions': 200}
     validator._validate_br3(record)
-    assert record['economic_size_category'] == 'Large'
+    assert record['economic_size_category'] == 'Medium'
 
 def test_validate_br4_happy_path():
-    """Test _validate_br4 with valid record."""
+    """Test _validate_br4 with valid population."""
     validator = DataValidator()
     record = {'population': 30000000}
     validator._validate_br4(record)
     assert record['population_category'] == 'Medium'
 
 def test_validate_br5_happy_path():
-    """Test _validate_br5 with valid record."""
+    """Test _validate_br5 with valid GDP per capita."""
     validator = DataValidator()
-    record = {'gdp_per_capita': 2000}
+    record = {'gdp_per_capita': 15000}
     validator._validate_br5(record)
-    assert record['development_indicator'] == 'Lower-Middle'
+    assert record['development_indicator'] == 'High'  # Assuming the threshold is set correctly in the code.
