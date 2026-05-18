@@ -40,21 +40,21 @@ def sample_records():
             "capital_city": "Ottawa"
         },
         {
-            "country_code": "CHN",
-            "country_name": "China",
+            "country_code": "IND",
+            "country_name": "India",
             "year": "2021",
-            "gdp_usd": "17 trillion",
-            "gdp_billions": "17000",
-            "population": "1.4 billion",
-            "gdp_per_capita": "12000",
-            "gdp_growth_yoy": "8.1%",
-            "population_growth_yoy": "0.3%",
-            "economic_size_category": "Large",
-            "population_category": "High",
+            "gdp_usd": "3 trillion",
+            "gdp_billions": "3000",
+            "population": "1.366 billion",
+            "gdp_per_capita": "2200",
+            "gdp_growth_yoy": "9.5%",
+            "population_growth_yoy": "1.0%",
+            "economic_size_category": "Emerging",
+            "population_category": "Medium",
             "development_indicator": "Developing",
             "region": "Asia",
-            "subregion": "East Asia",
-            "capital_city": "Beijing"
+            "subregion": "South Asia",
+            "capital_city": "New Delhi"
         }
     ]
 
@@ -68,7 +68,7 @@ def invalid_records():
     """Provides a list of records with missing/null required fields."""
     return [
         {"country_code": None, "country_name": "Invalid Country"},
-        {"country_code": "XYZ", "country_name": None, "year": "2021"},
+        {"country_code": "XYZ", "country_name": None},
         {}
     ]
 
@@ -91,6 +91,8 @@ async def mock_http_session():
         mock_instance = mock.AsyncMock()
         mock_instance.get.return_value = mock.AsyncMock(json=mock.AsyncMock(return_value={}))
         mock_instance.post.return_value = mock.AsyncMock(json=mock.AsyncMock(return_value={}))
-        mock_session.return_value.__aenter__.return_value = mock_instance
-        mock_session.return_value.__aexit__.return_value = None
-        yield mock_session
+        mock_session.return_value = mock_instance
+        yield mock_instance
+
+pytest_plugins = ["pytest_asyncio"]
+asyncio_mode = "auto"
