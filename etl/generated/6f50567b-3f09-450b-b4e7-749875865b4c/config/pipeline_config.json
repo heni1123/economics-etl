@@ -1,0 +1,59 @@
+{
+  "sources": [
+    {
+      "name": "worldbank_gdp",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/NY.GDP.MKTP.CD",
+      "auth": "none"
+    },
+    {
+      "name": "worldbank_population",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL",
+      "auth": "none"
+    },
+    {
+      "name": "exchangerate_api",
+      "url": "https://open.er-api.com/v6/latest/USD",
+      "auth": "none"
+    },
+    {
+      "name": "restcountries_info",
+      "url": "https://restcountries.com/v3.1/all",
+      "auth": "none"
+    }
+  ],
+  "targets": [
+    {
+      "table": "fact_economic_indicators",
+      "schema": "public",
+      "load_strategy": "upsert"
+    },
+    {
+      "table": "fact_exchange_rates",
+      "schema": "public",
+      "load_strategy": "truncate_insert"
+    },
+    {
+      "table": "dim_country",
+      "schema": "public",
+      "load_strategy": "upsert"
+    }
+  ],
+  "pipeline_settings": {
+    "load_strategies": [
+      "truncate_insert",
+      "upsert"
+    ]
+  },
+  "retry_policies": {
+    "max_retries": 3,
+    "retry_intervals": [1, 2, 4]
+  },
+  "monitoring": {
+    "logging_table": "etl_pipeline_runs",
+    "log_fields": ["status", "errors"]
+  },
+  "schedule": {
+    "frequency": "daily",
+    "time": "02:00 UTC"
+  }
+}
